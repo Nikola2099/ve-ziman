@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VE Ziman — Imovina</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>VE Ziman</h1>
+    <p class="login-sub">Praćenje rešavanja imovine</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="vas@email.com" />
+    </div>
+    <div class="form-group">
+      <label>Lozinka</label>
+      <input type="password" id="login-password" placeholder="••••••••" />
+    </div>
+    <button id="login-btn" class="btn btn-primary btn-full">Prijavi se</button>
+    <p id="login-error" class="error-msg hidden"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden sidebar-hidden">
+
+  <button id="sidebar-open-btn" title="Prikaži meni">☰</button>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-inner">
+        <div>
+          <span class="logo-text">VE Ziman</span>
+          <span class="logo-sub">Imovina</span>
+        </div>
+        <button id="sidebar-collapse-btn" class="sidebar-toggle-btn" title="Sakrij meni">‹</button>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">▦</span> Dashboard
+      </a>
+      <div class="nav-divider">Kategorije</div>
+      <a href="#" class="nav-item" data-page="Vetroturbine">
+        <span class="nav-icon nav-dot" style="background:#4f8ef7"></span> Vetroturbine
+        <span class="nav-badge" id="badge-Vetroturbine">0</span>
+      </a>
+      <a href="#" class="nav-item" data-page="OHL">
+        <span class="nav-icon nav-dot" style="background:#f472b6"></span> OHL
+        <span class="nav-badge" id="badge-OHL">0</span>
+      </a>
+      <a href="#" class="nav-item" data-page="TS">
+        <span class="nav-icon nav-dot" style="background:#f59e0b"></span> TS
+        <span class="nav-badge" id="badge-TS">0</span>
+      </a>
+      <a href="#" class="nav-item" data-page="Kablovi">
+        <span class="nav-icon nav-dot" style="background:#22c55e"></span> Kablovi
+        <span class="nav-badge" id="badge-Kablovi">0</span>
+      </a>
+      <a href="#" class="nav-item" data-page="MM">
+        <span class="nav-icon nav-dot" style="background:#38bdf8"></span> MM
+        <span class="nav-badge" id="badge-MM">0</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="user-email" class="user-email"></span>
+      <button id="logout-btn" class="btn btn-ghost btn-sm">Odjavi se</button>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Ukupno parcela</div>
+          <div class="stat-value" id="stat-ukupno">—</div>
+        </div>
+        <div class="stat-card accent-green">
+          <div class="stat-label">Potpisano</div>
+          <div class="stat-value" id="stat-potpisano">—</div>
+        </div>
+        <div class="stat-card accent-blue">
+          <div class="stat-label">Ukupna dogovorena suma</div>
+          <div class="stat-value" id="stat-suma">—</div>
+        </div>
+      </div>
+      <div class="breakdown-grid">
+        <div class="breakdown-card">
+          <h3>Status parcela</h3>
+          <div id="status-bars"></div>
+        </div>
+        <div class="breakdown-card">
+          <h3>Po kategoriji</h3>
+          <div id="kategorija-bars"></div>
+        </div>
+      </div>
+      <h2 class="subsection-title">Pregled po kategorijama</h2>
+      <div class="kat-summary-grid" id="kat-summary-grid"></div>
+    </div>
+
+    <!-- CATEGORY PAGES -->
+    <div id="page-Vetroturbine" class="page hidden"></div>
+    <div id="page-OHL"         class="page hidden"></div>
+    <div id="page-TS"          class="page hidden"></div>
+    <div id="page-Kablovi"     class="page hidden"></div>
+    <div id="page-MM"          class="page hidden"></div>
+
+  </div>
+</div>
+
+<!-- ===================== MODAL: dodaj/uredi parcelu ===================== -->
+<div id="modal-overlay" class="hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Dodaj parcelu</h3>
+      <button id="modal-close" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="field-id" />
+
+      <!-- Osnovno -->
+      <div class="form-section-title">Parcela</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Broj parcele *</label>
+          <input type="text" id="field-broj" placeholder="npr. 1234/1" />
+        </div>
+        <div class="form-group">
+          <label>KO *</label>
+          <input type="text" id="field-ko" placeholder="npr. Ziman" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Kategorija *</label>
+          <select id="field-kategorija">
+            <option value="">— izaberi —</option>
+            <option>Vetroturbine</option>
+            <option>OHL</option>
+            <option>TS</option>
+            <option>Kablovi</option>
+            <option>MM</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status *</label>
+          <select id="field-status">
+            <option>Nije kontaktirano</option>
+            <option>U pregovorima</option>
+            <option>Dogovoreno</option>
+            <option>Pripremanje ugovora</option>
+            <option>Potpisano</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Vrsta zemljišta</label>
+          <select id="field-vrsta-zemljista">
+            <option value="">— izaberi —</option>
+            <option>Poljoprivredno zemljište</option>
+            <option>Šumsko zemljište</option>
+            <option>Zemljište u građevinskom području</option>
+            <option>Vodno zemljište</option>
+            <option>Neplodno zemljište</option>
+            <option>Ostalo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Kultura</label>
+        <div id="kultura-picker" class="tag-picker"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Površina zauzeća (m²)</label>
+          <input type="number" id="field-povrsina" placeholder="0" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Planirani iznos (EUR)</label>
+          <input type="number" id="field-planirani" placeholder="0" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Dogovoreni iznos (EUR)</label>
+          <input type="number" id="field-suma" placeholder="0" min="0" step="0.01" />
+        </div>
+      </div>
+
+      <!-- OHL polja -->
+      <div id="ohl-fields" class="ohl-section hidden">
+        <div class="ohl-divider">OHL detalji</div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:140px">
+            <label>Broj stuba</label>
+            <input type="text" id="field-broj-stuba" placeholder="npr. NS1, US3" />
+          </div>
+          <div class="form-group">
+            <label>Tip stuba</label>
+            <div class="radio-group" style="padding-top:9px">
+              <label class="radio-label">
+                <input type="radio" name="tip_stuba" value="Noseći" /> Noseći
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="tip_stuba" value="Ugaoni" /> Ugaoni
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="tip_stuba" value="" checked /> Nije određeno
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vlasnici -->
+      <div class="form-section-title" style="margin-top:4px">Vlasnici</div>
+      <div class="vlasnici-section">
+        <div class="vlasnici-header">
+          <span class="vlasnici-hint">Može biti više vlasnika</span>
+          <button type="button" id="add-vlasnik-btn" class="btn btn-ghost btn-sm">+ Dodaj vlasnika</button>
+        </div>
+        <div id="vlasnici-list"></div>
+      </div>
+
+      <!-- Napomena -->
+      <div class="form-group">
+        <label>Napomena</label>
+        <textarea id="field-napomena" rows="3" placeholder="Slobodan tekst..."></textarea>
+      </div>
+
+      <p id="modal-error" class="error-msg hidden"></p>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-cancel" class="btn btn-ghost">Otkaži</button>
+      <button id="modal-save" class="btn btn-primary">Sačuvaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: Timeline ===================== -->
+<div id="timeline-overlay" class="hidden">
+  <div class="modal modal-timeline">
+    <div class="modal-header">
+      <div>
+        <h3 id="timeline-title">Timeline</h3>
+        <p id="timeline-subtitle" class="timeline-subtitle"></p>
+      </div>
+      <button id="timeline-close" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Novi unos -->
+      <div class="timeline-add-form">
+        <div class="form-row">
+          <div class="form-group" style="max-width:160px">
+            <label>Datum</label>
+            <input type="date" id="tl-datum" />
+          </div>
+          <div class="form-group">
+            <label>Opis događaja</label>
+            <input type="text" id="tl-opis" placeholder="npr. Kontaktiran vlasnik, Dostavljena dokumentacija..." />
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end">
+          <button id="tl-add-btn" class="btn btn-primary btn-sm">+ Dodaj unos</button>
+        </div>
+        <p id="tl-error" class="error-msg hidden"></p>
+      </div>
+
+      <!-- Lista -->
+      <div id="timeline-list" class="timeline-list"></div>
+      <div id="timeline-empty" class="no-results hidden">Nema unosa — dodaj prvi događaj iznad.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: Obriši parcelu ===================== -->
+<div id="delete-overlay" class="hidden">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>Obriši parcelu</h3>
+    </div>
+    <div class="modal-body">
+      <p>Da li si siguran da želiš da obrišeš ovu parcelu? Ova akcija se ne može poništiti.</p>
+    </div>
+    <div class="modal-footer">
+      <button id="delete-cancel" class="btn btn-ghost">Otkaži</button>
+      <button id="delete-confirm" class="btn btn-danger">Obriši</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
