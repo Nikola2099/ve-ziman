@@ -330,6 +330,11 @@ body {
 /* Selected row highlight */
 tr.tr-selected > td { background: rgba(79,142,247,0.08); }
 
+/* Drzalac row highlight */
+tr.tr-drzalac > td { background: rgba(239,68,68,0.08); }
+tr.tr-drzalac:hover > td { background: rgba(239,68,68,0.14); }
+tr.tr-drzalac.tr-selected > td { background: rgba(239,68,68,0.15); }
+
 /* OHL stub grouping */
 .stub-cell {
   vertical-align: middle;
@@ -491,6 +496,7 @@ tr.stub-group-child > td {
 .bar-U-pregovorima       { background: var(--orange); }
 .bar-Dogovoreno          { background: var(--blue); }
 .bar-Pripremanje-ugovora { background: #a78bfa; }
+.bar-Ugovor-pripremljen  { background: #86efac; }
 .bar-Potpisano           { background: var(--green); }
 .bar-Vetroturbine        { background: var(--primary); }
 .bar-OHL                 { background: #f472b6; }
@@ -538,9 +544,14 @@ tr.stub-group-child > td {
 }
 
 /* ===== FILTERI ===== */
-.filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.filter-input  { flex: 1; min-width: 200px; }
-.filter-select { min-width: 170px; }
+.filters { display: flex; gap: 6px; margin-bottom: 14px; align-items: center; }
+.filter-input  { flex: 1.5; min-width: 0; }
+.filter-select { flex: 1; min-width: 0; }
+.filters input,
+.filters select {
+  padding: 6px 8px;
+  font-size: 12px;
+}
 
 /* ===== TABLE ===== */
 .table-wrap {
@@ -656,6 +667,7 @@ tbody td { padding: 10px 14px; font-size: 13px; color: var(--text); vertical-ali
 .badge-pregovori  { background: #451a03; color: #fbbf24; }
 .badge-dogovoreno { background: #0c1a2e; color: var(--blue); }
 .badge-priprema   { background: #2e1065; color: #c4b5fd; }
+.badge-ugovor     { background: #1a2e1a; color: #86efac; }
 .badge-potpisano  { background: #052e16; color: var(--green); }
 .badge-noseci     { background: #1e3a5f; color: #93c5fd; }
 .badge-ugaoni     { background: #3b1f5e; color: #c4b5fd; }

@@ -7,7 +7,7 @@ const sb = createClient(
 
 // ===== CONFIG =====
 const KATEGORIJE     = ['Vetroturbine', 'OHL', 'TS', 'Kablovi', 'MM'];
-const STATUSI        = ['Nije kontaktirano', 'U pregovorima', 'Dogovoreno', 'Pripremanje ugovora', 'Potpisano'];
+const STATUSI        = ['Nije kontaktirano', 'U pregovorima', 'Dogovoreno', 'Pripremanje ugovora', 'Ugovor pripremljen', 'Potpisano'];
 const KAT_COLORS     = { Vetroturbine:'#4f8ef7', OHL:'#f472b6', TS:'#f59e0b', Kablovi:'#22c55e', MM:'#38bdf8' };
 const KULTURA_TAGS   = ['Njiva', 'Pašnjak', 'Livada', 'Šuma', 'Voćnjak', 'Vinograd', 'Trstik', 'Neplodno', 'Zgrade'];
 const VRSTE_ZEMLJISTA = ['Poljoprivredno zemljište', 'Šumsko zemljište', 'Zemljište u građevinskom području', 'Vodno zemljište', 'Neplodno zemljište', 'Ostalo'];
@@ -335,6 +335,17 @@ function renderKatPage(kat) {
             <option value="Noseći">Noseći</option>
             <option value="Ugaoni">Ugaoni</option>
           </select>` : ''}
+          <select class="filter-select" id="fvrsta-prava-${kat}">
+            <option value="">Sve vrste prava</option>
+            <option value="Pravo svojine">Pravo svojine</option>
+            <option value="Pravo korišćenja">Pravo korišćenja</option>
+          </select>
+          <select class="filter-select" id="foblik-${kat}">
+            <option value="">Svi oblici svojine</option>
+            <option value="Privatna">Privatna</option>
+            <option value="Državina">Državina</option>
+            <option value="Javna">Javna</option>
+          </select>
         </div>
         <div class="table-wrap">
           <table>
@@ -344,6 +355,7 @@ function renderKatPage(kat) {
                 <th>Parcela</th>
                 <th>KO</th>
                 <th>Vlasnici</th>
+                <th>Oblik svojine</th>
                 <th>Vrsta zem.</th>
                 <th>Kultura</th>
                 ${isOHL ? '<th>Tip stuba</th>' : ''}
@@ -399,6 +411,8 @@ function renderKatPage(kat) {
   document.getElementById(`fvrsta-${kat}`).addEventListener('change', () => renderKatTable(kat));
   document.getElementById(`fkultura-${kat}`).addEventListener('change', () => renderKatTable(kat));
   if (isOHL) document.getElementById(`ftip-${kat}`).addEventListener('change', () => renderKatTable(kat));
+  document.getElementById(`fvrsta-prava-${kat}`).addEventListener('change', () => renderKatTable(kat));
+  document.getElementById(`foblik-${kat}`).addEventListener('change', () => renderKatTable(kat));
   document.getElementById(`ktp-add-btn-${kat}`).addEventListener('click', () => addKatTimelineEntry(kat));
   document.getElementById(`ktp-opis-${kat}`).addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById(`ktp-add-btn-${kat}`).click();
@@ -450,11 +464,13 @@ function renderKatStats(kat) {
 }
 
 function renderKatTable(kat) {
-  const search      = (document.getElementById(`fs-${kat}`)?.value || '').toLowerCase();
-  const statFilt    = document.getElementById(`fstat-${kat}`)?.value || '';
-  const vrstaFilt   = document.getElementById(`fvrsta-${kat}`)?.value || '';
-  const kulturaFilt = document.getElementById(`fkultura-${kat}`)?.value || '';
-  const tipFilt     = document.getElementById(`ftip-${kat}`)?.value || '';
+  const search        = (document.getElementById(`fs-${kat}`)?.value || '').toLowerCase();
+  const statFilt      = document.getElementById(`fstat-${kat}`)?.value || '';
+  const vrstaFilt     = document.getElementById(`fvrsta-${kat}`)?.value || '';
+  const kulturaFilt   = document.getElementById(`fkultura-${kat}`)?.value || '';
+  const tipFilt       = document.getElementById(`ftip-${kat}`)?.value || '';
+  const vrstaPravaFilt = document.getElementById(`fvrsta-prava-${kat}`)?.value || '';
+  const oblikFilt     = document.getElementById(`foblik-${kat}`)?.value || '';
   const isOHL       = kat === 'OHL';
 
   const filtered = allParcele
@@ -466,8 +482,10 @@ function renderKatTable(kat) {
       const matchStat    = !statFilt    || p.status === statFilt;
       const matchVrsta   = !vrstaFilt   || p.vrsta_zemljista === vrstaFilt;
       const matchKultura = !kulturaFilt || (p.kultura && p.kultura.toLowerCase().includes(kulturaFilt.toLowerCase()));
-      const matchTip     = !tipFilt     || p.tip_stuba === tipFilt;
-      return matchSearch && matchStat && matchVrsta && matchKultura && matchTip;
+      const matchTip        = !tipFilt        || p.tip_stuba === tipFilt;
+      const matchVrstaPrava = !vrstaPravaFilt || (p.vlasnici || []).some(v => v.vrsta_prava === vrstaPravaFilt);
+      const matchOblik      = !oblikFilt      || (p.vlasnici || []).some(v => v.oblik_svojine === oblikFilt);
+      return matchSearch && matchStat && matchVrsta && matchKultura && matchTip && matchVrstaPrava && matchOblik;
     })
     .sort((a, b) => isOHL
       ? (a.broj_stuba || '').localeCompare(b.broj_stuba || '', undefined, { numeric: true, sensitivity: 'base' })
@@ -502,6 +520,7 @@ function renderKatTable(kat) {
     if (p.id === katTimelineParcelaId) tr.classList.add('tr-selected');
     if (isGroupStart) tr.classList.add('stub-group-start');
     if (isGroupChild) tr.classList.add('stub-group-child');
+    if ((p.vlasnici || []).some(v => v.oblik_svojine === 'Državina' || v.oblik_svojine === 'Javna')) tr.classList.add('tr-drzalac');
 
     const mkTd = (content, cls = '') => {
       const td = document.createElement('td');
@@ -525,6 +544,12 @@ function renderKatTable(kat) {
     tr.appendChild(tdKo);
 
     tr.appendChild(mkTd(vlasnikHtml, 'td-vlasnici'));
+
+    const obliciHtml = (p.vlasnici || []).length
+      ? [...new Set((p.vlasnici).map(v => v.oblik_svojine).filter(Boolean))]
+          .map(o => `<span class="owner-tag">${esc(o)}</span>`).join('') || '—'
+      : '—';
+    tr.appendChild(mkTd(obliciHtml));
 
     const tdVrsta = mkTd(esc(p.vrsta_zemljista || '—'));
     setupInlineEdit(tdVrsta, p.id, 'vrsta_zemljista', p.vrsta_zemljista, 'select-vrsta');
@@ -1026,15 +1051,11 @@ function addVlasnikRow(ime = '', kontakt = '', vrsta_prava = '', oblik_svojine =
         <option value="">— Vrsta prava —</option>
         <option ${vrsta_prava === 'Pravo svojine' ? 'selected' : ''}>Pravo svojine</option>
         <option ${vrsta_prava === 'Pravo korišćenja' ? 'selected' : ''}>Pravo korišćenja</option>
-        <option ${vrsta_prava === 'Pravo zakupa' ? 'selected' : ''}>Pravo zakupa</option>
-        <option ${vrsta_prava === 'Pravo službenosti' ? 'selected' : ''}>Pravo službenosti</option>
       </select>
       <select class="v-oblik-svojine">
         <option value="">— Oblik svojine —</option>
         <option ${oblik_svojine === 'Privatna' ? 'selected' : ''}>Privatna</option>
-        <option ${oblik_svojine === 'Državna' ? 'selected' : ''}>Državna</option>
-        <option ${oblik_svojine === 'Zadružna' ? 'selected' : ''}>Zadružna</option>
-        <option ${oblik_svojine === 'Mešovita' ? 'selected' : ''}>Mešovita</option>
+        <option ${oblik_svojine === 'Državina' ? 'selected' : ''}>Državina</option>
         <option ${oblik_svojine === 'Javna' ? 'selected' : ''}>Javna</option>
       </select>
     </div>`;
@@ -1340,6 +1361,7 @@ function statusBadge(status) {
     'U pregovorima':       'badge badge-pregovori',
     'Dogovoreno':          'badge badge-dogovoreno',
     'Pripremanje ugovora': 'badge badge-priprema',
+    'Ugovor pripremljen':  'badge badge-ugovor',
     'Potpisano':           'badge badge-potpisano',
   };
   return `<span class="${map[status] || 'badge'}">${esc(status)}</span>`;
