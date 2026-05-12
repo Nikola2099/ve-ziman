@@ -301,7 +301,7 @@ function renderKatPage(kat) {
             <div class="stat-value" id="ks-potpisano-${kat}">—</div>
           </div>
           <div class="stat-card" style="border-left-color:#a78bfa">
-            <div class="stat-label">Jednokratni deo</div>
+            <div class="stat-label">${isOHL ? 'Planirana suma' : 'Jednokratni deo'}</div>
             <div class="stat-value" id="ks-planirani-${kat}">—</div>
           </div>
         </div>
@@ -353,8 +353,8 @@ function renderKatPage(kat) {
                 <th>Vrsta zem.</th>
                 <th>Kultura</th>
                 ${isOHL ? '<th>Tip stuba</th>' : ''}
-                <th>Jednokratni deo</th>
-                <th>Godišnji deo</th>
+                <th>${isOHL ? 'Planirana suma' : 'Jednokratni deo'}</th>
+                <th>${isOHL ? 'Dogovorena suma' : 'Godišnji deo'}</th>
                 <th>Status</th>
                 <th>Napomena</th>
                 <th>Dinamika</th>
@@ -1073,8 +1073,18 @@ function setupSharedStatusEdit(td, groupItems, currentStatus) {
 }
 
 // ===== OHL TOGGLE =====
+function updateModalLabels(kat) {
+  const isOHL = kat === 'OHL';
+  document.querySelector('label[for-field="planirani"]').textContent =
+    (isOHL ? 'Planirana suma' : 'Jednokratni deo') + ' (EUR)';
+  document.querySelector('label[for-field="godisnji"]').textContent =
+    (isOHL ? 'Dogovorena suma' : 'Godišnji deo') + ' (EUR)';
+}
+
 fields.kategorija.addEventListener('change', () => {
-  ohlFields.classList.toggle('hidden', fields.kategorija.value !== 'OHL');
+  const kat = fields.kategorija.value;
+  ohlFields.classList.toggle('hidden', kat !== 'OHL');
+  updateModalLabels(kat);
 });
 
 function getTipStuba() {
@@ -1151,6 +1161,7 @@ function openAdd(kat) {
   if (kat) {
     fields.kategorija.value = kat;
     ohlFields.classList.toggle('hidden', kat !== 'OHL');
+    updateModalLabels(kat);
   }
   modalError.classList.add('hidden');
   modalOverlay.classList.remove('hidden');
@@ -1175,6 +1186,7 @@ function openEdit(id) {
   setTipStuba(p.tip_stuba || '');
   renderKulturaPicker(parseKultura(p.kultura));
   ohlFields.classList.toggle('hidden', p.kategorija !== 'OHL');
+  updateModalLabels(p.kategorija);
   vlasniciList.innerHTML = '';
   (p.vlasnici || []).forEach(v => addVlasnikRow(v.ime, v.kontakt || '', v.vrsta_prava || '', v.oblik_svojine || '', v.udeo || ''));
   updateVlasnikPlaceholder();
