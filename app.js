@@ -7,7 +7,7 @@ const sb = createClient(
 
 // ===== CONFIG =====
 const KATEGORIJE     = ['Vetroturbine', 'OHL', 'TS', 'Kablovi', 'MM'];
-const STATUSI        = ['Nije kontaktirano', 'U pregovorima', 'Dogovoreno', 'Pripremanje ugovora', 'Ugovor pripremljen', 'Potpisano'];
+const STATUSI        = ['Nije kontaktirano', 'U pregovorima', 'Dogovoreno', 'Rešavanje papira', 'Pripremanje ugovora', 'Ugovor pripremljen', 'Potpisano'];
 const KAT_COLORS     = { Vetroturbine:'#4f8ef7', OHL:'#f472b6', TS:'#f59e0b', Kablovi:'#22c55e', MM:'#38bdf8' };
 const KULTURA_TAGS   = ['Njiva', 'Pašnjak', 'Livada', 'Šuma', 'Voćnjak', 'Vinograd', 'Trstik', 'Neplodno', 'Zgrade'];
 const VRSTE_ZEMLJISTA = ['Poljoprivredno zemljište', 'Šumsko zemljište', 'Zemljište u građevinskom području', 'Vodno zemljište', 'Neplodno zemljište', 'Ostalo'];
@@ -61,7 +61,7 @@ const fields = {
   vrstaZemljista: document.getElementById('field-vrsta-zemljista'),
   povrsina:       document.getElementById('field-povrsina'),
   planirani:      document.getElementById('field-planirani'),
-  suma:           document.getElementById('field-suma'),
+  godisnji:       document.getElementById('field-godisnji'),
   napomena:       document.getElementById('field-napomena'),
   brojStuba:      document.getElementById('field-broj-stuba'),
 };
@@ -224,11 +224,9 @@ function updateBadges() {
 function renderDashboard() {
   const total = allParcele.length;
   const pot   = allParcele.filter(p => p.status === 'Potpisano').length;
-  const suma  = allParcele.reduce((s, p) => s + (p.dogovorena_suma_eur || 0), 0);
 
   document.getElementById('stat-ukupno').textContent    = total;
   document.getElementById('stat-potpisano').textContent = `${pot} / ${total}`;
-  document.getElementById('stat-suma').textContent      = formatEUR(suma);
 
   const sc = {}; STATUSI.forEach(s => sc[s] = 0);
   allParcele.forEach(p => { if (sc[p.status] !== undefined) sc[p.status]++; });
@@ -242,7 +240,6 @@ function renderDashboard() {
   grid.innerHTML = '';
   KATEGORIJE.forEach(kat => {
     const p     = allParcele.filter(x => x.kategorija === kat);
-    const s     = p.reduce((a, x) => a + (x.dogovorena_suma_eur || 0), 0);
     const color = KAT_COLORS[kat];
     const card  = document.createElement('div');
     card.className = 'kat-card';
@@ -250,8 +247,7 @@ function renderDashboard() {
     card.innerHTML = `
       <div class="kat-card-name" style="color:${color}">${kat}</div>
       <div class="kat-card-row"><span>Parcela</span><span>${p.length}</span></div>
-      <div class="kat-card-row"><span>Potpisano</span><span>${p.filter(x=>x.status==='Potpisano').length} / ${p.length}</span></div>
-      <div class="kat-card-row"><span>Suma</span><span>${s > 0 ? formatEUR(s) : '—'}</span></div>`;
+      <div class="kat-card-row"><span>Potpisano</span><span>${p.filter(x=>x.status==='Potpisano').length} / ${p.length}</span></div>`;
     card.addEventListener('click', () => navigateTo(kat));
     grid.appendChild(card);
   });
@@ -283,6 +279,7 @@ function renderKatPage(kat) {
   if (!container) return;
   const color = KAT_COLORS[kat];
   const isOHL = kat === 'OHL';
+  const isVetroturbine = kat === 'Vetroturbine';
 
   container.innerHTML = `
     <div class="kat-page-layout">
@@ -296,7 +293,7 @@ function renderKatPage(kat) {
         </div>
         <div class="kat-stats-grid" style="margin-bottom:14px">
           <div class="stat-card">
-            <div class="stat-label">Ukupno parcela</div>
+            <div class="stat-label">${isVetroturbine ? 'Ukupno turbina' : 'Ukupno parcela'}</div>
             <div class="stat-value" id="ks-ukupno-${kat}">—</div>
           </div>
           <div class="stat-card accent-green">
@@ -304,12 +301,8 @@ function renderKatPage(kat) {
             <div class="stat-value" id="ks-potpisano-${kat}">—</div>
           </div>
           <div class="stat-card" style="border-left-color:#a78bfa">
-            <div class="stat-label">Planirani iznos</div>
+            <div class="stat-label">Jednokratni deo</div>
             <div class="stat-value" id="ks-planirani-${kat}">—</div>
-          </div>
-          <div class="stat-card accent-blue">
-            <div class="stat-label">Dogovoreni iznos</div>
-            <div class="stat-value" id="ks-suma-${kat}">—</div>
           </div>
         </div>
         <div class="breakdown-card" style="margin-bottom:20px">
@@ -352,6 +345,7 @@ function renderKatPage(kat) {
             <thead>
               <tr>
                 ${isOHL ? '<th>Br. stuba</th>' : ''}
+                ${isVetroturbine ? '<th>Turbina</th>' : ''}
                 <th>Parcela</th>
                 <th>KO</th>
                 <th>Vlasnici</th>
@@ -359,8 +353,8 @@ function renderKatPage(kat) {
                 <th>Vrsta zem.</th>
                 <th>Kultura</th>
                 ${isOHL ? '<th>Tip stuba</th>' : ''}
-                <th>Planirani iznos</th>
-                <th>Dogovoreni iznos</th>
+                <th>Jednokratni deo</th>
+                <th>Godišnji deo</th>
                 <th>Status</th>
                 <th>Napomena</th>
                 <th>Dinamika</th>
@@ -426,36 +420,36 @@ function renderKatStats(kat) {
   const parcele   = allParcele.filter(p => p.kategorija === kat);
   const total     = parcele.length;
   const pot       = parcele.filter(p => p.status === 'Potpisano').length;
-  const suma      = parcele.reduce((s, p) => s + (p.dogovorena_suma_eur || 0), 0);
   const planirani = parcele.reduce((s, p) => s + (p.planirani_iznos_eur || 0), 0);
   const el = id => document.getElementById(id);
 
-  if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent    = total;
   if (el(`ks-planirani-${kat}`)) el(`ks-planirani-${kat}`).textContent = planirani > 0 ? formatEUR(planirani) : '—';
-  if (el(`ks-suma-${kat}`))      el(`ks-suma-${kat}`).textContent      = suma > 0 ? formatEUR(suma) : '—';
 
-  if (kat === 'OHL') {
-    // Group by stub, status per stub = least advanced parcel in that stub
-    const stubMap = {};
+  if (kat === 'OHL' || kat === 'Vetroturbine') {
+    // Group by stub/turbine number; status per group = least advanced parcel
+    const groupMap = {};
     parcele.forEach(p => {
       const key = p.broj_stuba || '—';
-      if (!stubMap[key]) stubMap[key] = [];
-      stubMap[key].push(p);
+      if (!groupMap[key]) groupMap[key] = [];
+      groupMap[key].push(p);
     });
-    const stubKeys   = Object.keys(stubMap);
-    const stubTotal  = stubKeys.length;
-    const stubPot    = Object.values(stubMap).filter(items => items.every(p => p.status === 'Potpisano')).length;
+    const groupVals  = Object.values(groupMap);
+    const groupTotal = groupVals.length;
+    const groupPot   = groupVals.filter(items => items.every(p => p.status === 'Potpisano')).length;
+    const label      = kat === 'OHL' ? 'stubova' : 'turbina';
 
-    if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).textContent = `${stubPot} / ${stubTotal} stubova`;
+    if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent    = groupTotal;
+    if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).textContent = `${groupPot} / ${groupTotal} ${label}`;
 
     const sc = {}; STATUSI.forEach(s => sc[s] = 0);
-    Object.values(stubMap).forEach(items => {
+    groupVals.forEach(items => {
       const minIdx = Math.min(...items.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
       const status = STATUSI[isFinite(minIdx) ? minIdx : 0];
       if (sc[status] !== undefined) sc[status]++;
     });
-    renderBars(`ks-bars-${kat}`, STATUSI, sc, stubTotal);
+    renderBars(`ks-bars-${kat}`, STATUSI, sc, groupTotal);
   } else {
+    if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent    = total;
     if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).textContent = `${pot} / ${total}`;
     const sc = {}; STATUSI.forEach(s => sc[s] = 0);
     parcele.forEach(p => { if (sc[p.status] !== undefined) sc[p.status]++; });
@@ -471,7 +465,8 @@ function renderKatTable(kat) {
   const tipFilt       = document.getElementById(`ftip-${kat}`)?.value || '';
   const vrstaPravaFilt = document.getElementById(`fvrsta-prava-${kat}`)?.value || '';
   const oblikFilt     = document.getElementById(`foblik-${kat}`)?.value || '';
-  const isOHL       = kat === 'OHL';
+  const isOHL          = kat === 'OHL';
+  const isVetroturbine = kat === 'Vetroturbine';
 
   const filtered = allParcele
     .filter(p => p.kategorija === kat)
@@ -487,7 +482,7 @@ function renderKatTable(kat) {
       const matchOblik      = !oblikFilt      || (p.vlasnici || []).some(v => v.oblik_svojine === oblikFilt);
       return matchSearch && matchStat && matchVrsta && matchKultura && matchTip && matchVrstaPrava && matchOblik;
     })
-    .sort((a, b) => isOHL
+    .sort((a, b) => (isOHL || isVetroturbine)
       ? (a.broj_stuba || '').localeCompare(b.broj_stuba || '', undefined, { numeric: true, sensitivity: 'base' })
       : 0
     );
@@ -500,9 +495,9 @@ function renderKatTable(kat) {
   if (filtered.length === 0) { nores.classList.remove('hidden'); return; }
   nores.classList.add('hidden');
 
-  // For OHL: group consecutive rows by broj_stuba so stubs with multiple parcels use rowspan
-  const groups = isOHL ? [] : null;
-  if (isOHL) {
+  // For OHL and Vetroturbine: group consecutive rows by broj_stuba so entries with multiple parcels use rowspan
+  const groups = (isOHL || isVetroturbine) ? [] : null;
+  if (isOHL || isVetroturbine) {
     filtered.forEach(p => {
       const last = groups[groups.length - 1];
       if (last && last.stub === p.broj_stuba) last.items.push(p);
@@ -510,7 +505,7 @@ function renderKatTable(kat) {
     });
   }
 
-  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, sumaTd = null, statusTd = null, skipPlan = false, skipSuma = false, skipStatus = false } = {}) => {
+  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, godisnjiTd = null, statusTd = null, vlasniciTd = null, oblikTd = null, skipPlan = false, skipGodisnji = false, skipStatus = false, skipVlasnici = false, skipOblik = false } = {}) => {
     const vlasnikHtml = (p.vlasnici || []).length
       ? p.vlasnici.map(v => `<span class="owner-tag" title="${esc(v.kontakt || '')}">${esc(v.ime)}</span>`).join('')
       : '—';
@@ -529,8 +524,8 @@ function renderKatTable(kat) {
       return td;
     };
 
-    // Stub number cell — either the rowspan cell passed in, or a normal cell for non-OHL
-    if (isOHL) {
+    // Stub/Turbina cell — rowspan cell passed in from group rendering
+    if (isOHL || isVetroturbine) {
       if (stubTd) tr.appendChild(stubTd);
       // child rows skip this cell (rowspan covers them)
     }
@@ -543,13 +538,17 @@ function renderKatTable(kat) {
     setupInlineEdit(tdKo, p.id, 'ko', p.ko, 'text');
     tr.appendChild(tdKo);
 
-    tr.appendChild(mkTd(vlasnikHtml, 'td-vlasnici'));
+    if (!skipVlasnici) {
+      tr.appendChild(vlasniciTd || mkTd(vlasnikHtml, 'td-vlasnici'));
+    }
 
     const obliciHtml = (p.vlasnici || []).length
       ? [...new Set((p.vlasnici).map(v => v.oblik_svojine).filter(Boolean))]
           .map(o => `<span class="owner-tag">${esc(o)}</span>`).join('') || '—'
       : '—';
-    tr.appendChild(mkTd(obliciHtml));
+    if (!skipOblik) {
+      tr.appendChild(oblikTd || mkTd(obliciHtml));
+    }
 
     const tdVrsta = mkTd(esc(p.vrsta_zemljista || '—'));
     setupInlineEdit(tdVrsta, p.id, 'vrsta_zemljista', p.vrsta_zemljista, 'select-vrsta');
@@ -573,12 +572,12 @@ function renderKatTable(kat) {
       }
     }
 
-    if (!skipSuma) {
-      if (sumaTd) {
-        tr.appendChild(sumaTd);
+    if (!skipGodisnji) {
+      if (godisnjiTd) {
+        tr.appendChild(godisnjiTd);
       } else {
-        const td = mkTd(p.dogovorena_suma_eur != null ? formatEUR(p.dogovorena_suma_eur) : '—');
-        setupInlineEdit(td, p.id, 'dogovorena_suma_eur', p.dogovorena_suma_eur, 'number');
+        const td = mkTd(p.godisnji_iznos_eur != null ? formatEUR(p.godisnji_iznos_eur) : '—');
+        setupInlineEdit(td, p.id, 'godisnji_iznos_eur', p.godisnji_iznos_eur, 'number');
         tr.appendChild(td);
       }
     }
@@ -615,7 +614,7 @@ function renderKatTable(kat) {
     tbody.appendChild(tr);
   };
 
-  if (isOHL) {
+  if (isOHL || isVetroturbine) {
     const getOwnerKey = p => (p.vlasnici || []).map(v => v.ime).sort().join('|');
 
     groups.forEach((group, gi) => {
@@ -623,25 +622,50 @@ function renderKatTable(kat) {
       stubTd.rowSpan = group.items.length;
       stubTd.className = 'stub-cell' + (group.items.length > 1 ? ' stub-cell-multi' : '');
       const firstP = group.items[0];
-      const mailLink = firstP.link_mejla;
-      stubTd.innerHTML = `
-        <strong>${esc(group.stub || '—')}</strong>
-        <div class="stub-mail-row">
-          ${mailLink
-            ? `<a class="stub-mail-link" href="${esc(mailLink)}" target="_blank" rel="noopener" title="Otvori Outlook thread">✉</a>
-               <button class="stub-mail-edit" onclick="event.stopPropagation();editStubMailLink(this,'${firstP.id}')" title="Izmeni link">✎</button>`
-            : `<button class="stub-mail-add" onclick="event.stopPropagation();editStubMailLink(this,'${firstP.id}')" title="Dodaj link ka mejlu">+ ✉</button>`
-          }
-        </div>`;
+      if (isOHL) {
+        const mailLink = firstP.link_mejla;
+        stubTd.innerHTML = `
+          <strong>${esc(group.stub || '—')}</strong>
+          <div class="stub-mail-row">
+            ${mailLink
+              ? `<a class="stub-mail-link" href="${esc(mailLink)}" target="_blank" rel="noopener" title="Otvori Outlook thread">✉</a>
+                 <button class="stub-mail-edit" onclick="event.stopPropagation();editStubMailLink(this,'${firstP.id}')" title="Izmeni link">✎</button>`
+              : `<button class="stub-mail-add" onclick="event.stopPropagation();editStubMailLink(this,'${firstP.id}')" title="Dodaj link ka mejlu">+ ✉</button>`
+            }
+          </div>`;
+      } else {
+        stubTd.innerHTML = `<strong>${esc(group.stub || '—')}</strong>`;
+        setupInlineEdit(stubTd, firstP.id, 'broj_stuba', group.stub, 'text');
+      }
 
       // Check if all parcels in this group have the same owners
       const sameOwners = group.items.length > 1 &&
         group.items.every(p => getOwnerKey(p) === getOwnerKey(group.items[0]));
 
-      let sharedPlanTd = null, sharedSumaTd = null, sharedStatusTd = null;
+      // Build consecutive same-owner sub-groups for per-sub-group vlasnici merging
+      const ownerSubGroups = [];
+      {
+        let cur = [group.items[0]];
+        for (let i = 1; i < group.items.length; i++) {
+          if (getOwnerKey(group.items[i]) === getOwnerKey(group.items[i - 1])) {
+            cur.push(group.items[i]);
+          } else {
+            ownerSubGroups.push(cur);
+            cur = [group.items[i]];
+          }
+        }
+        ownerSubGroups.push(cur);
+      }
+      // Map each item index → { subGroup, posInSg }
+      const itemSgInfo = [];
+      for (const sg of ownerSubGroups) {
+        for (let j = 0; j < sg.length; j++) itemSgInfo.push({ sg, posInSg: j });
+      }
+
+      let sharedPlanTd = null, sharedGodisnjiTd = null;
       if (sameOwners) {
-        const totalPlan = group.items.reduce((s, p) => s + (p.planirani_iznos_eur || 0), 0);
-        const totalSuma = group.items.reduce((s, p) => s + (p.dogovorena_suma_eur || 0), 0);
+        const totalPlan     = group.items.reduce((s, p) => s + (p.planirani_iznos_eur || 0), 0);
+        const totalGodisnji = group.items.reduce((s, p) => s + (p.godisnji_iznos_eur || 0), 0);
 
         sharedPlanTd = document.createElement('td');
         sharedPlanTd.rowSpan = group.items.length;
@@ -649,32 +673,70 @@ function renderKatTable(kat) {
         sharedPlanTd.innerHTML = totalPlan > 0 ? formatEUR(totalPlan) : '—';
         setupSharedAmountEdit(sharedPlanTd, group.items, 'planirani_iznos_eur', totalPlan);
 
-        sharedSumaTd = document.createElement('td');
-        sharedSumaTd.rowSpan = group.items.length;
-        sharedSumaTd.className = 'shared-amount-cell';
-        sharedSumaTd.innerHTML = totalSuma > 0 ? formatEUR(totalSuma) : '—';
-        setupSharedAmountEdit(sharedSumaTd, group.items, 'dogovorena_suma_eur', totalSuma);
+        sharedGodisnjiTd = document.createElement('td');
+        sharedGodisnjiTd.rowSpan = group.items.length;
+        sharedGodisnjiTd.className = 'shared-amount-cell';
+        sharedGodisnjiTd.innerHTML = totalGodisnji > 0 ? formatEUR(totalGodisnji) : '—';
+        setupSharedAmountEdit(sharedGodisnjiTd, group.items, 'godisnji_iznos_eur', totalGodisnji);
+      }
 
-        // Shared status — use the least advanced status in the group
-        const minIdx = Math.min(...group.items.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
-        const groupStatus = STATUSI[isFinite(minIdx) ? minIdx : 0];
-        sharedStatusTd = document.createElement('td');
-        sharedStatusTd.rowSpan = group.items.length;
-        sharedStatusTd.innerHTML = statusBadge(groupStatus);
-        setupSharedStatusEdit(sharedStatusTd, group.items, groupStatus);
+      // Pre-build shared vlasnici/oblik/status tds keyed by sub-group start index
+      const sgVlasniciTd = new Map();
+      const sgOblikTd    = new Map();
+      const sgStatusTd   = new Map();
+      {
+        let absIdx = 0;
+        for (const sg of ownerSubGroups) {
+          if (sg.length > 1) {
+            const sgVlasnici = sg[0].vlasnici || [];
+            const vlasniciHtml = sgVlasnici.length
+              ? sgVlasnici.map(v => `<span class="owner-tag" title="${esc(v.kontakt || '')}">${esc(v.ime)}</span>`).join('')
+              : '—';
+            const vTd = document.createElement('td');
+            vTd.rowSpan = sg.length;
+            vTd.className = 'td-vlasnici';
+            vTd.innerHTML = vlasniciHtml;
+            sgVlasniciTd.set(absIdx, vTd);
+
+            const obliciHtml = sgVlasnici.length
+              ? [...new Set(sgVlasnici.map(v => v.oblik_svojine).filter(Boolean))]
+                  .map(o => `<span class="owner-tag">${esc(o)}</span>`).join('') || '—'
+              : '—';
+            const oTd = document.createElement('td');
+            oTd.rowSpan = sg.length;
+            oTd.innerHTML = obliciHtml;
+            sgOblikTd.set(absIdx, oTd);
+
+            const minSgIdx = Math.min(...sg.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
+            const sgStatus = STATUSI[isFinite(minSgIdx) ? minSgIdx : 0];
+            const sTd = document.createElement('td');
+            sTd.rowSpan = sg.length;
+            sTd.innerHTML = statusBadge(sgStatus);
+            setupSharedStatusEdit(sTd, sg, sgStatus);
+            sgStatusTd.set(absIdx, sTd);
+          }
+          absIdx += sg.length;
+        }
       }
 
       group.items.forEach((p, idx) => {
+        const { sg, posInSg } = itemSgInfo[idx];
+        const sgStart = idx - posInSg;
+        const inMergedSg = sg.length > 1;
         renderRow(p, {
-          stubTd:      idx === 0 ? stubTd : null,
+          stubTd:       idx === 0 ? stubTd : null,
           isGroupChild: idx > 0,
           isGroupStart: gi > 0 && idx === 0,
-          planTd:      sameOwners && idx === 0 ? sharedPlanTd : null,
-          sumaTd:      sameOwners && idx === 0 ? sharedSumaTd : null,
-          statusTd:    sameOwners && idx === 0 ? sharedStatusTd : null,
-          skipPlan:    sameOwners && idx > 0,
-          skipSuma:    sameOwners && idx > 0,
-          skipStatus:  sameOwners && idx > 0,
+          planTd:       sameOwners && idx === 0 ? sharedPlanTd     : null,
+          godisnjiTd:   sameOwners && idx === 0 ? sharedGodisnjiTd : null,
+          statusTd:     inMergedSg && posInSg === 0 ? sgStatusTd.get(sgStart) : null,
+          vlasniciTd:   inMergedSg && posInSg === 0 ? sgVlasniciTd.get(sgStart) : null,
+          oblikTd:      inMergedSg && posInSg === 0 ? sgOblikTd.get(sgStart)    : null,
+          skipPlan:     sameOwners && idx > 0,
+          skipGodisnji: sameOwners && idx > 0,
+          skipStatus:   inMergedSg && posInSg > 0,
+          skipVlasnici: inMergedSg && posInSg > 0,
+          skipOblik:    inMergedSg && posInSg > 0,
         });
       });
     });
@@ -682,6 +744,7 @@ function renderKatTable(kat) {
     filtered.forEach(p => renderRow(p));
   }
 }
+
 
 function setupInlineEdit(td, parcelaId, field, value, type) {
   td.classList.add('editable-cell');
@@ -1106,7 +1169,7 @@ function openEdit(id) {
   fields.vrstaZemljista.value  = p.vrsta_zemljista || '';
   fields.povrsina.value        = p.povrsina_m2 != null ? p.povrsina_m2 : '';
   fields.planirani.value       = p.planirani_iznos_eur != null ? p.planirani_iznos_eur : '';
-  fields.suma.value            = p.dogovorena_suma_eur != null ? p.dogovorena_suma_eur : '';
+  fields.godisnji.value        = p.godisnji_iznos_eur  != null ? p.godisnji_iznos_eur  : '';
   fields.napomena.value        = p.napomena || '';
   fields.brojStuba.value       = p.broj_stuba || '';
   setTipStuba(p.tip_stuba || '');
@@ -1154,6 +1217,7 @@ modalSave.addEventListener('click', async () => {
   }
 
   const isOHL = kat === 'OHL';
+  const existingParcela = allParcele.find(x => x.id === fields.id.value);
   const payload = {
     broj_parcele:        broj,
     ko,
@@ -1163,10 +1227,10 @@ modalSave.addEventListener('click', async () => {
     kultura:             getKultura(),
     povrsina_m2:         fields.povrsina.value !== '' ? parseFloat(fields.povrsina.value) : null,
     planirani_iznos_eur: fields.planirani.value !== '' ? parseFloat(fields.planirani.value) : null,
-    dogovorena_suma_eur: fields.suma.value !== '' ? parseFloat(fields.suma.value) : null,
+    godisnji_iznos_eur:  fields.godisnji.value  !== '' ? parseFloat(fields.godisnji.value)  : null,
     napomena:            fields.napomena.value.trim() || null,
     tip_stuba:           isOHL ? getTipStuba() : null,
-    broj_stuba:          isOHL ? (fields.brojStuba.value.trim() || null) : null,
+    broj_stuba:          isOHL ? (fields.brojStuba.value.trim() || null) : (existingParcela?.broj_stuba ?? null),
   };
 
   modalSave.disabled = true;
@@ -1360,6 +1424,7 @@ function statusBadge(status) {
     'Nije kontaktirano':   'badge badge-nije',
     'U pregovorima':       'badge badge-pregovori',
     'Dogovoreno':          'badge badge-dogovoreno',
+    'Rešavanje papira':    'badge badge-resavanje',
     'Pripremanje ugovora': 'badge badge-priprema',
     'Ugovor pripremljen':  'badge badge-ugovor',
     'Potpisano':           'badge badge-potpisano',
@@ -1443,12 +1508,10 @@ async function mergeStubOwnerAmounts(brojStuba) {
     if (parcele.length < 2) continue;
 
     const totalPlan = parcele.reduce((s, p) => s + (p.planirani_iznos_eur || 0), 0);
-    const totalSuma = parcele.reduce((s, p) => s + (p.dogovorena_suma_eur || 0), 0);
 
     for (let i = 0; i < parcele.length; i++) {
       await sb.from('parcele').update({
         planirani_iznos_eur: i === 0 ? (totalPlan > 0 ? totalPlan : null) : null,
-        dogovorena_suma_eur: i === 0 ? (totalSuma > 0 ? totalSuma : null) : null,
       }).eq('id', parcele[i].id);
     }
     merged = true;
