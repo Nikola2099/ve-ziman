@@ -348,6 +348,9 @@ tr.tr-drzalac.tr-selected > td { background: rgba(239,68,68,0.15); }
 tr.stub-group-start > td {
   border-top: 2px solid var(--border) !important;
 }
+tr.turbine-group-start > td {
+  border-top: 3px solid rgba(79,142,247,0.5) !important;
+}
 tr.stub-group-child > td {
   border-top: 1px dashed rgba(255,255,255,0.06) !important;
 }
@@ -464,6 +467,36 @@ tr.stub-group-child > td {
   margin-bottom: 16px;
 }
 
+.breakdown-card-compact {
+  padding: 10px 16px;
+}
+.breakdown-card-compact h3 {
+  margin-bottom: 8px;
+}
+.breakdown-card-compact .bar-row {
+  margin-bottom: 5px;
+}
+.breakdown-card-compact .bar-label {
+  width: 120px;
+  font-size: 11px;
+}
+.breakdown-card-compact .bar-track {
+  height: 5px;
+}
+.breakdown-card-compact .bar-count {
+  font-size: 11px;
+}
+
+/* Amounts for Vetroturbine */
+table.tbl-vetroturbine td.td-amount {
+  font-size: 12px;
+  font-weight: 400;
+}
+table.tbl-vetroturbine .shared-amount-cell {
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .bar-row {
   display: flex;
   align-items: center;
@@ -490,7 +523,7 @@ tr.stub-group-child > td {
 }
 
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
-.bar-count { font-size: 12px; color: var(--text-muted); width: 28px; text-align: right; flex-shrink: 0; }
+.bar-count { font-size: 15px; font-weight: 700; color: var(--text); width: 32px; text-align: right; flex-shrink: 0; }
 
 .bar-Nije-kontaktirano   { background: #4b5563; }
 .bar-U-pregovorima       { background: var(--orange); }
@@ -1134,3 +1167,20 @@ textarea { resize: vertical; }
 .inline-edit-el:focus {
   box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.25);
 }
+
+/* ===== POZICIJA & RIZIK ===== */
+.badge-usvojena  { background: rgba(79,142,247,0.15); color: var(--primary); }
+.badge-pomeranje { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.pomeranje-br { display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+.td-rizik-mali    { background: rgba(34,197,94,0.13) !important; }
+.td-rizik-srednji { background: rgba(245,158,11,0.13) !important; }
+.td-rizik-veliki  { background: rgba(239,68,68,0.13) !important; }
+
+.rizik-text-mali    { font-size: 12px; font-weight: 700; color: var(--green); }
+.rizik-text-srednji { font-size: 12px; font-weight: 700; color: var(--orange); }
+.rizik-text-veliki  { font-size: 12px; font-weight: 700; color: var(--red); }
+
+.pozicija-edit-wrap { display: flex; flex-direction: column; gap: 4px; }
+.pozicija-edit-wrap select,
+.pozicija-edit-wrap input { font-size: 12px; padding: 3px 6px; }

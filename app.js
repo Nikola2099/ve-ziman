@@ -64,6 +64,9 @@ const fields = {
   godisnji:       document.getElementById('field-godisnji'),
   napomena:       document.getElementById('field-napomena'),
   brojStuba:      document.getElementById('field-broj-stuba'),
+  pozicija:       document.getElementById('field-pozicija'),
+  pozicijaBr:     document.getElementById('field-pozicija-br'),
+  rizik:          document.getElementById('field-rizik'),
 };
 
 // ===== KULTURA TAG PICKER =====
@@ -264,8 +267,8 @@ function renderBars(containerId, labels, counts, total) {
     container.innerHTML += `
       <div class="bar-row">
         <span class="bar-label" title="${label}">${label}</span>
-        <div class="bar-track"><div class="bar-fill bar-${slug}" style="width:${pct}%"></div></div>
         <span class="bar-count">${count}</span>
+        <div class="bar-track"><div class="bar-fill bar-${slug}" style="width:${pct}%"></div></div>
       </div>`;
   });
 }
@@ -339,9 +342,20 @@ function renderKatPage(kat) {
             <option value="Državina">Državina</option>
             <option value="Javna">Javna</option>
           </select>
+          <select class="filter-select" id="fpozicija-${kat}">
+            <option value="">Sve pozicije</option>
+            <option value="Usvojena">Usvojena</option>
+            <option value="Pomeranje">Pomeranje</option>
+          </select>
+          <select class="filter-select" id="frizik-${kat}">
+            <option value="">Svi rizici</option>
+            <option value="Mali">Mali</option>
+            <option value="Srednji">Srednji</option>
+            <option value="Veliki">Veliki</option>
+          </select>
         </div>
         <div class="table-wrap">
-          <table>
+          <table${isVetroturbine ? ' class="tbl-vetroturbine"' : ''}>
             <thead>
               <tr>
                 ${isOHL ? '<th>Br. stuba</th>' : ''}
@@ -356,6 +370,8 @@ function renderKatPage(kat) {
                 <th>${isOHL ? 'Planirana suma' : 'Jednokratni deo'}</th>
                 <th>${isOHL ? 'Dogovorena suma' : 'Godišnji deo'}</th>
                 <th>Status</th>
+                <th>Pozicija</th>
+                <th>Rizik</th>
                 <th>Napomena</th>
                 <th>Dinamika</th>
                 <th></th>
@@ -407,6 +423,8 @@ function renderKatPage(kat) {
   if (isOHL) document.getElementById(`ftip-${kat}`).addEventListener('change', () => renderKatTable(kat));
   document.getElementById(`fvrsta-prava-${kat}`).addEventListener('change', () => renderKatTable(kat));
   document.getElementById(`foblik-${kat}`).addEventListener('change', () => renderKatTable(kat));
+  document.getElementById(`fpozicija-${kat}`).addEventListener('change', () => renderKatTable(kat));
+  document.getElementById(`frizik-${kat}`).addEventListener('change', () => renderKatTable(kat));
   document.getElementById(`ktp-add-btn-${kat}`).addEventListener('click', () => addKatTimelineEntry(kat));
   document.getElementById(`ktp-opis-${kat}`).addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById(`ktp-add-btn-${kat}`).click();
@@ -438,8 +456,8 @@ function renderKatStats(kat) {
     const groupPot   = groupVals.filter(items => items.every(p => p.status === 'Potpisano')).length;
     const label      = kat === 'OHL' ? 'stubova' : 'turbina';
 
-    if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent    = groupTotal;
-    if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).textContent = `${groupPot} / ${groupTotal} ${label}`;
+    if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent  = groupTotal;
+    if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).innerHTML = `<strong>${groupPot}</strong> / <strong>${groupTotal}</strong> ${label}`;
 
     const sc = {}; STATUSI.forEach(s => sc[s] = 0);
     groupVals.forEach(items => {
@@ -465,6 +483,8 @@ function renderKatTable(kat) {
   const tipFilt       = document.getElementById(`ftip-${kat}`)?.value || '';
   const vrstaPravaFilt = document.getElementById(`fvrsta-prava-${kat}`)?.value || '';
   const oblikFilt     = document.getElementById(`foblik-${kat}`)?.value || '';
+  const pozicijaFilt  = document.getElementById(`fpozicija-${kat}`)?.value || '';
+  const rizikFilt     = document.getElementById(`frizik-${kat}`)?.value || '';
   const isOHL          = kat === 'OHL';
   const isVetroturbine = kat === 'Vetroturbine';
 
@@ -480,7 +500,9 @@ function renderKatTable(kat) {
       const matchTip        = !tipFilt        || p.tip_stuba === tipFilt;
       const matchVrstaPrava = !vrstaPravaFilt || (p.vlasnici || []).some(v => v.vrsta_prava === vrstaPravaFilt);
       const matchOblik      = !oblikFilt      || (p.vlasnici || []).some(v => v.oblik_svojine === oblikFilt);
-      return matchSearch && matchStat && matchVrsta && matchKultura && matchTip && matchVrstaPrava && matchOblik;
+      const matchPozicija   = !pozicijaFilt   || p.pozicija === pozicijaFilt;
+      const matchRizik      = !rizikFilt      || p.rizik === rizikFilt;
+      return matchSearch && matchStat && matchVrsta && matchKultura && matchTip && matchVrstaPrava && matchOblik && matchPozicija && matchRizik;
     })
     .sort((a, b) => (isOHL || isVetroturbine)
       ? (a.broj_stuba || '').localeCompare(b.broj_stuba || '', undefined, { numeric: true, sensitivity: 'base' })
@@ -505,7 +527,7 @@ function renderKatTable(kat) {
     });
   }
 
-  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, godisnjiTd = null, statusTd = null, vlasniciTd = null, oblikTd = null, skipPlan = false, skipGodisnji = false, skipStatus = false, skipVlasnici = false, skipOblik = false } = {}) => {
+  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, godisnjiTd = null, statusTd = null, vlasniciTd = null, oblikTd = null, pozicijaTd = null, rizikTd = null, napomenaTd = null, dinamikaTd = null, skipPlan = false, skipGodisnji = false, skipStatus = false, skipVlasnici = false, skipOblik = false, skipPozicija = false, skipRizik = false, skipNapomena = false, skipDinamika = false } = {}) => {
     const vlasnikHtml = (p.vlasnici || []).length
       ? p.vlasnici.map(v => `<span class="owner-tag" title="${esc(v.kontakt || '')}">${esc(v.ime)}</span>`).join('')
       : '—';
@@ -513,7 +535,7 @@ function renderKatTable(kat) {
     const tr = document.createElement('tr');
     tr.dataset.id = p.id;
     if (p.id === katTimelineParcelaId) tr.classList.add('tr-selected');
-    if (isGroupStart) tr.classList.add('stub-group-start');
+    if (isGroupStart) tr.classList.add(isVetroturbine ? 'turbine-group-start' : 'stub-group-start');
     if (isGroupChild) tr.classList.add('stub-group-child');
     if ((p.vlasnici || []).some(v => v.oblik_svojine === 'Državina' || v.oblik_svojine === 'Javna')) tr.classList.add('tr-drzalac');
 
@@ -567,6 +589,7 @@ function renderKatTable(kat) {
         tr.appendChild(planTd);
       } else {
         const td = mkTd(p.planirani_iznos_eur != null ? formatEUR(p.planirani_iznos_eur) : '—');
+        if (isVetroturbine) td.classList.add('td-amount');
         setupInlineEdit(td, p.id, 'planirani_iznos_eur', p.planirani_iznos_eur, 'number');
         tr.appendChild(td);
       }
@@ -577,6 +600,7 @@ function renderKatTable(kat) {
         tr.appendChild(godisnjiTd);
       } else {
         const td = mkTd(p.godisnji_iznos_eur != null ? formatEUR(p.godisnji_iznos_eur) : '—');
+        if (isVetroturbine) td.classList.add('td-amount');
         setupInlineEdit(td, p.id, 'godisnji_iznos_eur', p.godisnji_iznos_eur, 'number');
         tr.appendChild(td);
       }
@@ -592,13 +616,48 @@ function renderKatTable(kat) {
       }
     }
 
-    const tdNap = mkTd(esc(p.napomena || ''));
-    setupInlineEdit(tdNap, p.id, 'napomena', p.napomena, 'text');
-    tr.appendChild(tdNap);
+    if (!skipPozicija) {
+      if (pozicijaTd) {
+        tr.appendChild(pozicijaTd);
+      } else {
+        const td = document.createElement('td');
+        td.innerHTML = renderPozicijaHtml(p.pozicija, p.pozicija_br_parcele);
+        setupPozicijaEdit(td, [p], p.pozicija, p.pozicija_br_parcele);
+        tr.appendChild(td);
+      }
+    }
 
-    const tdDinamika = mkTd(`
-      <button class="btn btn-ghost btn-sm btn-icon" onclick="showKatTimeline('${p.id}')">Dinamika</button>`);
-    tr.appendChild(tdDinamika);
+    if (!skipRizik) {
+      if (rizikTd) {
+        tr.appendChild(rizikTd);
+      } else {
+        const td = document.createElement('td');
+        applyRizikClass(td, p.rizik);
+        td.innerHTML = renderRizikHtml(p.rizik);
+        setupRizikEdit(td, [p], p.rizik);
+        tr.appendChild(td);
+      }
+    }
+
+    if (!skipNapomena) {
+      if (napomenaTd) {
+        tr.appendChild(napomenaTd);
+      } else {
+        const tdNap = mkTd(esc(p.napomena || ''));
+        setupInlineEdit(tdNap, p.id, 'napomena', p.napomena, 'text');
+        tr.appendChild(tdNap);
+      }
+    }
+
+    if (!skipDinamika) {
+      if (dinamikaTd) {
+        tr.appendChild(dinamikaTd);
+      } else {
+        const tdDinamika = mkTd(`
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="showKatTimeline('${p.id}')">Dinamika</button>`);
+        tr.appendChild(tdDinamika);
+      }
+    }
 
     const tdAct = mkTd(`
       <div class="action-menu">
@@ -637,6 +696,22 @@ function renderKatTable(kat) {
         stubTd.innerHTML = `<strong>${esc(group.stub || '—')}</strong>`;
         setupInlineEdit(stubTd, firstP.id, 'broj_stuba', group.stub, 'text');
       }
+
+      // Per-stub pozicija and rizik (span entire stub group)
+      const stubPozicijaVal = group.items[0].pozicija || null;
+      const stubPozicijaBr  = group.items[0].pozicija_br_parcele || null;
+      const stubRizikVal    = group.items[0].rizik || null;
+
+      const stubPozicijaTd = document.createElement('td');
+      stubPozicijaTd.rowSpan = group.items.length;
+      stubPozicijaTd.innerHTML = renderPozicijaHtml(stubPozicijaVal, stubPozicijaBr);
+      setupPozicijaEdit(stubPozicijaTd, group.items, stubPozicijaVal, stubPozicijaBr);
+
+      const stubRizikTd = document.createElement('td');
+      stubRizikTd.rowSpan = group.items.length;
+      applyRizikClass(stubRizikTd, stubRizikVal);
+      stubRizikTd.innerHTML = renderRizikHtml(stubRizikVal);
+      setupRizikEdit(stubRizikTd, group.items, stubRizikVal);
 
       // Check if all parcels in this group have the same owners
       const sameOwners = group.items.length > 1 &&
@@ -681,9 +756,11 @@ function renderKatTable(kat) {
       }
 
       // Pre-build shared vlasnici/oblik/status tds keyed by sub-group start index
-      const sgVlasniciTd = new Map();
-      const sgOblikTd    = new Map();
-      const sgStatusTd   = new Map();
+      const sgVlasniciTd  = new Map();
+      const sgOblikTd     = new Map();
+      const sgStatusTd    = new Map();
+      const sgNapomenaTd  = new Map();
+      const sgDinamikaTd  = new Map();
       {
         let absIdx = 0;
         for (const sg of ownerSubGroups) {
@@ -714,6 +791,17 @@ function renderKatTable(kat) {
             sTd.innerHTML = statusBadge(sgStatus);
             setupSharedStatusEdit(sTd, sg, sgStatus);
             sgStatusTd.set(absIdx, sTd);
+
+            const nTd = document.createElement('td');
+            nTd.rowSpan = sg.length;
+            nTd.innerHTML = esc(sg[0].napomena || '');
+            setupInlineEdit(nTd, sg[0].id, 'napomena', sg[0].napomena, 'text');
+            sgNapomenaTd.set(absIdx, nTd);
+
+            const dTd = document.createElement('td');
+            dTd.rowSpan = sg.length;
+            dTd.innerHTML = `<button class="btn btn-ghost btn-sm btn-icon" onclick="showKatTimeline('${sg[0].id}')">Dinamika</button>`;
+            sgDinamikaTd.set(absIdx, dTd);
           }
           absIdx += sg.length;
         }
@@ -729,14 +817,22 @@ function renderKatTable(kat) {
           isGroupStart: gi > 0 && idx === 0,
           planTd:       sameOwners && idx === 0 ? sharedPlanTd     : null,
           godisnjiTd:   sameOwners && idx === 0 ? sharedGodisnjiTd : null,
-          statusTd:     inMergedSg && posInSg === 0 ? sgStatusTd.get(sgStart) : null,
+          statusTd:     inMergedSg && posInSg === 0 ? sgStatusTd.get(sgStart)   : null,
           vlasniciTd:   inMergedSg && posInSg === 0 ? sgVlasniciTd.get(sgStart) : null,
           oblikTd:      inMergedSg && posInSg === 0 ? sgOblikTd.get(sgStart)    : null,
+          pozicijaTd:   idx === 0 ? stubPozicijaTd : null,
+          rizikTd:      idx === 0 ? stubRizikTd    : null,
+          napomenaTd:   inMergedSg && posInSg === 0 ? sgNapomenaTd.get(sgStart) : null,
+          dinamikaTd:   inMergedSg && posInSg === 0 ? sgDinamikaTd.get(sgStart) : null,
           skipPlan:     sameOwners && idx > 0,
           skipGodisnji: sameOwners && idx > 0,
+          skipPozicija: idx > 0,
+          skipRizik:    idx > 0,
           skipStatus:   inMergedSg && posInSg > 0,
           skipVlasnici: inMergedSg && posInSg > 0,
           skipOblik:    inMergedSg && posInSg > 0,
+          skipNapomena: inMergedSg && posInSg > 0,
+          skipDinamika: inMergedSg && posInSg > 0,
         });
       });
     });
@@ -1087,6 +1183,10 @@ fields.kategorija.addEventListener('change', () => {
   updateModalLabels(kat);
 });
 
+fields.pozicija.addEventListener('change', () => {
+  document.getElementById('pozicija-br-wrap').classList.toggle('hidden', fields.pozicija.value !== 'Pomeranje');
+});
+
 function getTipStuba() {
   const checked = document.querySelector('input[name="tip_stuba"]:checked');
   return checked ? checked.value || null : null;
@@ -1183,6 +1283,10 @@ function openEdit(id) {
   fields.godisnji.value        = p.godisnji_iznos_eur  != null ? p.godisnji_iznos_eur  : '';
   fields.napomena.value        = p.napomena || '';
   fields.brojStuba.value       = p.broj_stuba || '';
+  fields.pozicija.value        = p.pozicija || '';
+  fields.pozicijaBr.value      = p.pozicija_br_parcele || '';
+  fields.rizik.value           = p.rizik || '';
+  document.getElementById('pozicija-br-wrap').classList.toggle('hidden', p.pozicija !== 'Pomeranje');
   setTipStuba(p.tip_stuba || '');
   renderKulturaPicker(parseKultura(p.kultura));
   ohlFields.classList.toggle('hidden', p.kategorija !== 'OHL');
@@ -1208,6 +1312,10 @@ function clearForm() {
   fields.vrstaZemljista.value = '';
   fields.planirani.value = '';
   fields.brojStuba.value = '';
+  fields.pozicija.value = '';
+  fields.pozicijaBr.value = '';
+  fields.rizik.value = '';
+  document.getElementById('pozicija-br-wrap').classList.add('hidden');
   setTipStuba('');
   ohlFields.classList.add('hidden');
   renderKulturaPicker(new Map());
@@ -1241,6 +1349,9 @@ modalSave.addEventListener('click', async () => {
     planirani_iznos_eur: fields.planirani.value !== '' ? parseFloat(fields.planirani.value) : null,
     godisnji_iznos_eur:  fields.godisnji.value  !== '' ? parseFloat(fields.godisnji.value)  : null,
     napomena:            fields.napomena.value.trim() || null,
+    pozicija:            fields.pozicija.value || null,
+    pozicija_br_parcele: fields.pozicija.value === 'Pomeranje' ? (fields.pozicijaBr.value.trim() || null) : null,
+    rizik:               fields.rizik.value || null,
     tip_stuba:           isOHL ? getTipStuba() : null,
     broj_stuba:          isOHL ? (fields.brojStuba.value.trim() || null) : (existingParcela?.broj_stuba ?? null),
   };
@@ -1448,6 +1559,136 @@ function tipStubaBadge(val) {
   if (!val) return '—';
   const cls = val === 'Noseći' ? 'badge badge-noseci' : 'badge badge-ugaoni';
   return `<span class="${cls}">${esc(val)}</span>`;
+}
+
+// ===== POZICIJA & RIZIK HELPERS =====
+function renderPozicijaHtml(pozicija, brParcele) {
+  if (!pozicija) return '—';
+  if (pozicija === 'Usvojena') return '<span class="badge badge-usvojena">Usvojena</span>';
+  if (pozicija === 'Pomeranje') {
+    return `<span class="badge badge-pomeranje">Pomeranje</span>${brParcele ? `<span class="pomeranje-br">→ ${esc(brParcele)}</span>` : ''}`;
+  }
+  return esc(pozicija);
+}
+
+function renderRizikHtml(rizik) {
+  if (!rizik) return '—';
+  const cls = rizik === 'Mali' ? 'rizik-text-mali' : rizik === 'Srednji' ? 'rizik-text-srednji' : 'rizik-text-veliki';
+  return `<span class="${cls}">${esc(rizik)}</span>`;
+}
+
+function applyRizikClass(td, rizik) {
+  td.classList.remove('td-rizik-mali', 'td-rizik-srednji', 'td-rizik-veliki');
+  if (rizik === 'Mali') td.classList.add('td-rizik-mali');
+  else if (rizik === 'Srednji') td.classList.add('td-rizik-srednji');
+  else if (rizik === 'Veliki') td.classList.add('td-rizik-veliki');
+}
+
+function setupPozicijaEdit(td, items, currentPozicija, currentBr) {
+  td.classList.add('editable-cell');
+  td.addEventListener('click', e => {
+    if (td.querySelector('.pozicija-edit-wrap')) return;
+    e.stopPropagation();
+    const origHtml = td.innerHTML;
+    const origClass = [...td.classList];
+
+    const wrap = document.createElement('div');
+    wrap.className = 'pozicija-edit-wrap';
+
+    const sel = document.createElement('select');
+    sel.className = 'inline-edit-el';
+    [['', '— izaberi —'], ['Usvojena', 'Usvojena'], ['Pomeranje', 'Pomeranje']].forEach(([v, l]) => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = l;
+      if (v === (currentPozicija || '')) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    const brInput = document.createElement('input');
+    brInput.type = 'text';
+    brInput.className = 'inline-edit-el';
+    brInput.placeholder = 'Br. parcele';
+    brInput.value = currentBr || '';
+    brInput.style.display = sel.value === 'Pomeranje' ? '' : 'none';
+
+    sel.addEventListener('change', () => {
+      brInput.style.display = sel.value === 'Pomeranje' ? '' : 'none';
+    });
+
+    wrap.appendChild(sel);
+    wrap.appendChild(brInput);
+    td.innerHTML = '';
+    td.appendChild(wrap);
+    sel.focus();
+
+    async function save() {
+      const newPozicija = sel.value || null;
+      const newBr = newPozicija === 'Pomeranje' ? (brInput.value.trim() || null) : null;
+      for (const item of items) {
+        await sb.from('parcele').update({ pozicija: newPozicija, pozicija_br_parcele: newBr }).eq('id', item.id);
+      }
+      await loadParcele();
+      renderKatStats(currentPage);
+      renderKatTable(currentPage);
+    }
+
+    function cancel() { td.innerHTML = origHtml; }
+
+    let saved = false;
+    sel.addEventListener('change', () => {
+      if (sel.value !== 'Pomeranje') { saved = true; save(); }
+    });
+    brInput.addEventListener('blur', () => { if (!saved) { saved = true; save(); } });
+    brInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { saved = true; save(); }
+      if (e.key === 'Escape') { saved = true; cancel(); }
+    });
+    sel.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { saved = true; cancel(); }
+    });
+    sel.addEventListener('blur', () => {
+      if (!saved && sel.value !== 'Pomeranje') { saved = true; cancel(); }
+    });
+  });
+}
+
+function setupRizikEdit(td, items, currentRizik) {
+  td.classList.add('editable-cell');
+  td.addEventListener('click', e => {
+    if (td.querySelector('.inline-edit-el')) return;
+    e.stopPropagation();
+    const origHtml = td.innerHTML;
+
+    const sel = document.createElement('select');
+    sel.className = 'inline-edit-el';
+    [['', '— izaberi —'], ['Mali', 'Mali'], ['Srednji', 'Srednji'], ['Veliki', 'Veliki']].forEach(([v, l]) => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = l;
+      if (v === (currentRizik || '')) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    td.innerHTML = '';
+    td.appendChild(sel);
+    sel.focus();
+
+    async function save() {
+      const newRizik = sel.value || null;
+      for (const item of items) {
+        await sb.from('parcele').update({ rizik: newRizik }).eq('id', item.id);
+      }
+      await loadParcele();
+      renderKatStats(currentPage);
+      renderKatTable(currentPage);
+    }
+
+    function cancel() { td.innerHTML = origHtml; }
+
+    let acted = false;
+    sel.addEventListener('change', () => { acted = true; save(); });
+    sel.addEventListener('keydown', e => { if (e.key === 'Escape') { acted = true; cancel(); } });
+    sel.addEventListener('blur', () => { if (!acted) cancel(); });
+  });
 }
 
 // ===== DRAG-TO-SCROLL TABLES =====
