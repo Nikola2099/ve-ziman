@@ -243,44 +243,6 @@ function renderDashboard() {
   allParcele.forEach(p => { if (kc[p.kategorija] !== undefined) kc[p.kategorija]++; });
   renderBars('kategorija-bars', KATEGORIJE, kc, total);
 
-  // OHL po tipu stuba
-  const ohlGroups = {};
-  allParcele.filter(p => p.kategorija === 'OHL').forEach(p => {
-    const key = p.broj_stuba || '—';
-    if (!ohlGroups[key]) ohlGroups[key] = [];
-    ohlGroups[key].push(p);
-  });
-
-  const isStubPotpisano   = items => items.every(p => p.status === 'Potpisano');
-  const isStubDogovoreno  = items => {
-    const minIdx = Math.min(...items.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
-    return DOGOVORENO_SET.has(STATUSI[isFinite(minIdx) ? minIdx : 0]);
-  };
-
-  const noseci = [], ugaoni = [];
-  Object.values(ohlGroups).forEach(items => {
-    const tip = items[0].tip_stuba;
-    if (tip === 'Noseći') noseci.push(items);
-    else if (tip === 'Ugaoni') ugaoni.push(items);
-  });
-
-  const ohlTipGrid = document.getElementById('ohl-tip-grid');
-  ohlTipGrid.innerHTML = '';
-  [['Noseći', noseci, '#4f8ef7'], ['Ugaoni', ugaoni, '#c4b5fd']].forEach(([label, stubs, color]) => {
-    const n   = stubs.length;
-    const pot = stubs.filter(isStubPotpisano).length;
-    const dog = stubs.filter(isStubDogovoreno).length;
-    const card = document.createElement('div');
-    card.className = 'ohl-tip-card';
-    card.style.borderLeftColor = color;
-    card.innerHTML = `
-      <div class="ohl-tip-name" style="color:${color}">${label}</div>
-      <div class="ohl-tip-total">${n} stubova</div>
-      <div class="ohl-tip-row"><span>Potpisano</span><span class="ohl-tip-val">${pot} / ${n}</span></div>
-      <div class="ohl-tip-row"><span>Dogovoreno</span><span class="ohl-tip-val">${dog} / ${n}</span></div>`;
-    ohlTipGrid.appendChild(card);
-  });
-
   const grid = document.getElementById('kat-summary-grid');
   grid.innerHTML = '';
   KATEGORIJE.forEach(kat => {
@@ -355,6 +317,7 @@ function renderKatPage(kat) {
           <h3>Status</h3>
           <div id="ks-bars-${kat}"></div>
         </div>
+        ${isOHL ? `<div class="ohl-tip-grid" id="ks-tip-grid-${kat}" style="margin-bottom:20px"></div>` : ''}
         <div class="filters">
           <input type="text" class="filter-input" id="fs-${kat}" placeholder="Pretraži (parcela, KO, vlasnik...)" />
           <select class="filter-select" id="fstat-${kat}">
@@ -509,6 +472,38 @@ function renderKatStats(kat) {
       if (sc[status] !== undefined) sc[status]++;
     });
     renderBars(`ks-bars-${kat}`, STATUSI, sc, groupTotal);
+
+    if (kat === 'OHL') {
+      const isStubPotpisano  = items => items.every(p => p.status === 'Potpisano');
+      const isStubDogovoreno = items => {
+        const minIdx = Math.min(...items.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
+        return DOGOVORENO_SET.has(STATUSI[isFinite(minIdx) ? minIdx : 0]);
+      };
+      const noseci = [], ugaoni = [];
+      groupVals.forEach(items => {
+        const tip = items[0].tip_stuba;
+        if (tip === 'Noseći') noseci.push(items);
+        else if (tip === 'Ugaoni') ugaoni.push(items);
+      });
+      const tipGrid = el(`ks-tip-grid-${kat}`);
+      if (tipGrid) {
+        tipGrid.innerHTML = '';
+        [['Noseći', noseci, '#4f8ef7'], ['Ugaoni', ugaoni, '#c4b5fd']].forEach(([label, stubs, color]) => {
+          const n   = stubs.length;
+          const pot = stubs.filter(isStubPotpisano).length;
+          const dog = stubs.filter(isStubDogovoreno).length;
+          const card = document.createElement('div');
+          card.className = 'ohl-tip-card';
+          card.style.borderLeftColor = color;
+          card.innerHTML = `
+            <div class="ohl-tip-name" style="color:${color}">${label}</div>
+            <div class="ohl-tip-total">${n} stubova</div>
+            <div class="ohl-tip-row"><span>Potpisano</span><span class="ohl-tip-val">${pot} / ${n}</span></div>
+            <div class="ohl-tip-row"><span>Dogovoreno</span><span class="ohl-tip-val">${dog} / ${n}</span></div>`;
+          tipGrid.appendChild(card);
+        });
+      }
+    }
   } else {
     if (el(`ks-ukupno-${kat}`))    el(`ks-ukupno-${kat}`).textContent    = total;
     if (el(`ks-potpisano-${kat}`)) el(`ks-potpisano-${kat}`).textContent = `${pot} / ${total}`;
