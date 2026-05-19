@@ -224,12 +224,16 @@ function updateBadges() {
 }
 
 // ===== DASHBOARD =====
+const DOGOVORENO_SET = new Set(['Dogovoreno', 'Rešavanje papira', 'Pripremanje ugovora', 'Ugovor pripremljen', 'Potpisano']);
+
 function renderDashboard() {
   const total = allParcele.length;
   const pot   = allParcele.filter(p => p.status === 'Potpisano').length;
+  const dog   = allParcele.filter(p => DOGOVORENO_SET.has(p.status)).length;
 
   document.getElementById('stat-ukupno').textContent    = total;
   document.getElementById('stat-potpisano').textContent = `${pot} / ${total}`;
+  document.getElementById('stat-dogovoreno').textContent = `${dog} / ${total}`;
 
   const sc = {}; STATUSI.forEach(s => sc[s] = 0);
   allParcele.forEach(p => { if (sc[p.status] !== undefined) sc[p.status]++; });
@@ -238,6 +242,44 @@ function renderDashboard() {
   const kc = {}; KATEGORIJE.forEach(k => kc[k] = 0);
   allParcele.forEach(p => { if (kc[p.kategorija] !== undefined) kc[p.kategorija]++; });
   renderBars('kategorija-bars', KATEGORIJE, kc, total);
+
+  // OHL po tipu stuba
+  const ohlGroups = {};
+  allParcele.filter(p => p.kategorija === 'OHL').forEach(p => {
+    const key = p.broj_stuba || '—';
+    if (!ohlGroups[key]) ohlGroups[key] = [];
+    ohlGroups[key].push(p);
+  });
+
+  const isStubPotpisano   = items => items.every(p => p.status === 'Potpisano');
+  const isStubDogovoreno  = items => {
+    const minIdx = Math.min(...items.map(p => STATUSI.indexOf(p.status)).filter(i => i >= 0));
+    return DOGOVORENO_SET.has(STATUSI[isFinite(minIdx) ? minIdx : 0]);
+  };
+
+  const noseci = [], ugaoni = [];
+  Object.values(ohlGroups).forEach(items => {
+    const tip = items[0].tip_stuba;
+    if (tip === 'Noseći') noseci.push(items);
+    else if (tip === 'Ugaoni') ugaoni.push(items);
+  });
+
+  const ohlTipGrid = document.getElementById('ohl-tip-grid');
+  ohlTipGrid.innerHTML = '';
+  [['Noseći', noseci, '#4f8ef7'], ['Ugaoni', ugaoni, '#c4b5fd']].forEach(([label, stubs, color]) => {
+    const n   = stubs.length;
+    const pot = stubs.filter(isStubPotpisano).length;
+    const dog = stubs.filter(isStubDogovoreno).length;
+    const card = document.createElement('div');
+    card.className = 'ohl-tip-card';
+    card.style.borderLeftColor = color;
+    card.innerHTML = `
+      <div class="ohl-tip-name" style="color:${color}">${label}</div>
+      <div class="ohl-tip-total">${n} stubova</div>
+      <div class="ohl-tip-row"><span>Potpisano</span><span class="ohl-tip-val">${pot} / ${n}</span></div>
+      <div class="ohl-tip-row"><span>Dogovoreno</span><span class="ohl-tip-val">${dog} / ${n}</span></div>`;
+    ohlTipGrid.appendChild(card);
+  });
 
   const grid = document.getElementById('kat-summary-grid');
   grid.innerHTML = '';
@@ -250,7 +292,8 @@ function renderDashboard() {
     card.innerHTML = `
       <div class="kat-card-name" style="color:${color}">${kat}</div>
       <div class="kat-card-row"><span>Parcela</span><span>${p.length}</span></div>
-      <div class="kat-card-row"><span>Potpisano</span><span>${p.filter(x=>x.status==='Potpisano').length} / ${p.length}</span></div>`;
+      <div class="kat-card-row"><span>Potpisano</span><span>${p.filter(x=>x.status==='Potpisano').length} / ${p.length}</span></div>
+      <div class="kat-card-row"><span>Dogovoreno</span><span>${p.filter(x=>DOGOVORENO_SET.has(x.status)).length} / ${p.length}</span></div>`;
     card.addEventListener('click', () => navigateTo(kat));
     grid.appendChild(card);
   });

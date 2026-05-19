@@ -431,6 +431,27 @@ tr.stub-group-child > td {
 .stat-card.accent-blue   { border-left-color: var(--blue); }
 .stat-card.accent-orange { border-left-color: var(--orange); }
 
+/* ===== OHL TIP GRID ===== */
+.ohl-tip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 32px;
+}
+
+.ohl-tip-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  border-left: 3px solid var(--border);
+}
+
+.ohl-tip-name  { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.ohl-tip-total { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.ohl-tip-row   { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+.ohl-tip-val   { color: var(--text); font-weight: 600; }
+
 .stat-label {
   font-size: 11px;
   color: var(--text-muted);
