@@ -65,7 +65,7 @@ const fields = {
   napomena:       document.getElementById('field-napomena'),
   brojStuba:      document.getElementById('field-broj-stuba'),
   pozicija:       document.getElementById('field-pozicija'),
-  pozicijaBr:     document.getElementById('field-pozicija-br'),
+  pozicijaBr:     null, // replaced by dynamic list #pozicija-br-list
   rizik:          document.getElementById('field-rizik'),
 };
 
@@ -527,7 +527,7 @@ function renderKatTable(kat) {
     });
   }
 
-  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, godisnjiTd = null, statusTd = null, vlasniciTd = null, oblikTd = null, pozicijaTd = null, rizikTd = null, napomenaTd = null, dinamikaTd = null, skipPlan = false, skipGodisnji = false, skipStatus = false, skipVlasnici = false, skipOblik = false, skipPozicija = false, skipRizik = false, skipNapomena = false, skipDinamika = false } = {}) => {
+  const renderRow = (p, { stubTd = null, isGroupChild = false, isGroupStart = false, planTd = null, godisnjiTd = null, statusTd = null, vlasniciTd = null, oblikTd = null, tipTd = null, pozicijaTd = null, rizikTd = null, napomenaTd = null, dinamikaTd = null, skipPlan = false, skipGodisnji = false, skipStatus = false, skipVlasnici = false, skipOblik = false, skipTip = false, skipPozicija = false, skipRizik = false, skipNapomena = false, skipDinamika = false } = {}) => {
     const vlasnikHtml = (p.vlasnici || []).length
       ? p.vlasnici.map(v => `<span class="owner-tag" title="${esc(v.kontakt || '')}">${esc(v.ime)}</span>`).join('')
       : '—';
@@ -578,10 +578,14 @@ function renderKatTable(kat) {
 
     tr.appendChild(mkTd(kulturaBadges(p.kultura)));
 
-    if (isOHL) {
-      const tdTip = mkTd(tipStubaBadge(p.tip_stuba));
-      setupInlineEdit(tdTip, p.id, 'tip_stuba', p.tip_stuba, 'select-stub');
-      tr.appendChild(tdTip);
+    if (isOHL && !skipTip) {
+      if (tipTd) {
+        tr.appendChild(tipTd);
+      } else {
+        const tdTip = mkTd(tipStubaBadge(p.tip_stuba));
+        setupInlineEdit(tdTip, p.id, 'tip_stuba', p.tip_stuba, 'select-stub');
+        tr.appendChild(tdTip);
+      }
     }
 
     if (!skipPlan) {
@@ -621,8 +625,8 @@ function renderKatTable(kat) {
         tr.appendChild(pozicijaTd);
       } else {
         const td = document.createElement('td');
-        td.innerHTML = renderPozicijaHtml(p.pozicija, p.pozicija_br_parcele);
-        setupPozicijaEdit(td, [p], p.pozicija, p.pozicija_br_parcele);
+        td.innerHTML = renderPozicijaHtml(p.pozicija, p.pozicija_br_parcele, p.usvojena_rezerve);
+        setupPozicijaEdit(td, [p], p.pozicija, p.pozicija_br_parcele, p.usvojena_rezerve);
         tr.appendChild(td);
       }
     }
@@ -700,12 +704,19 @@ function renderKatTable(kat) {
       // Per-stub pozicija and rizik (span entire stub group)
       const stubPozicijaVal = group.items[0].pozicija || null;
       const stubPozicijaBr  = group.items[0].pozicija_br_parcele || null;
+      const stubPozicijaRez = group.items[0].usvojena_rezerve || null;
       const stubRizikVal    = group.items[0].rizik || null;
+
+      const stubTipVal = group.items[0].tip_stuba || null;
+      const stubTipTd = document.createElement('td');
+      stubTipTd.rowSpan = group.items.length;
+      stubTipTd.innerHTML = tipStubaBadge(stubTipVal);
+      setupSharedTipEdit(stubTipTd, group.items, stubTipVal);
 
       const stubPozicijaTd = document.createElement('td');
       stubPozicijaTd.rowSpan = group.items.length;
-      stubPozicijaTd.innerHTML = renderPozicijaHtml(stubPozicijaVal, stubPozicijaBr);
-      setupPozicijaEdit(stubPozicijaTd, group.items, stubPozicijaVal, stubPozicijaBr);
+      stubPozicijaTd.innerHTML = renderPozicijaHtml(stubPozicijaVal, stubPozicijaBr, stubPozicijaRez);
+      setupPozicijaEdit(stubPozicijaTd, group.items, stubPozicijaVal, stubPozicijaBr, stubPozicijaRez);
 
       const stubRizikTd = document.createElement('td');
       stubRizikTd.rowSpan = group.items.length;
@@ -820,12 +831,14 @@ function renderKatTable(kat) {
           statusTd:     inMergedSg && posInSg === 0 ? sgStatusTd.get(sgStart)   : null,
           vlasniciTd:   inMergedSg && posInSg === 0 ? sgVlasniciTd.get(sgStart) : null,
           oblikTd:      inMergedSg && posInSg === 0 ? sgOblikTd.get(sgStart)    : null,
+          tipTd:        idx === 0 ? stubTipTd      : null,
           pozicijaTd:   idx === 0 ? stubPozicijaTd : null,
           rizikTd:      idx === 0 ? stubRizikTd    : null,
           napomenaTd:   inMergedSg && posInSg === 0 ? sgNapomenaTd.get(sgStart) : null,
           dinamikaTd:   inMergedSg && posInSg === 0 ? sgDinamikaTd.get(sgStart) : null,
           skipPlan:     sameOwners && idx > 0,
           skipGodisnji: sameOwners && idx > 0,
+          skipTip:      idx > 0,
           skipPozicija: idx > 0,
           skipRizik:    idx > 0,
           skipStatus:   inMergedSg && posInSg > 0,
@@ -1168,6 +1181,45 @@ function setupSharedStatusEdit(td, groupItems, currentStatus) {
   });
 }
 
+function setupSharedTipEdit(td, groupItems, currentTip) {
+  td.classList.add('editable-cell');
+  td.addEventListener('click', e => {
+    if (td.querySelector('.inline-edit-el')) return;
+    e.stopPropagation();
+    const origHtml = td.innerHTML;
+
+    const el = document.createElement('select');
+    el.className = 'inline-edit-el';
+    [['', 'Nije određeno'], ['Noseći', 'Noseći'], ['Ugaoni', 'Ugaoni']].forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      if (val === (currentTip || '')) opt.selected = true;
+      el.appendChild(opt);
+    });
+
+    td.innerHTML = '';
+    td.appendChild(el);
+    el.focus();
+
+    async function save() {
+      const newTip = el.value || null;
+      for (const p of groupItems) {
+        await sb.from('parcele').update({ tip_stuba: newTip }).eq('id', p.id);
+      }
+      await loadParcele();
+      renderKatStats(currentPage);
+      renderKatTable(currentPage);
+    }
+
+    function cancel() { td.innerHTML = origHtml; }
+
+    let acted = false;
+    el.addEventListener('change', () => { acted = true; save(); });
+    el.addEventListener('keydown', e => { if (e.key === 'Escape') { acted = true; cancel(); } });
+    el.addEventListener('blur', () => { if (!acted) cancel(); });
+  });
+}
+
 // ===== OHL TOGGLE =====
 function updateModalLabels(kat) {
   const isOHL = kat === 'OHL';
@@ -1184,7 +1236,9 @@ fields.kategorija.addEventListener('change', () => {
 });
 
 fields.pozicija.addEventListener('change', () => {
-  document.getElementById('pozicija-br-wrap').classList.toggle('hidden', fields.pozicija.value !== 'Pomeranje');
+  const val = fields.pozicija.value;
+  document.getElementById('pozicija-br-wrap').classList.toggle('hidden', val !== 'Pomeranje');
+  document.getElementById('usvojena-rezerve-wrap').classList.toggle('hidden', val !== 'Usvojena');
 });
 
 function getTipStuba() {
@@ -1254,6 +1308,61 @@ function updateVlasnikPlaceholder() {
 
 addVlasnikBtn.addEventListener('click', () => addVlasnikRow());
 
+// ===== POZICIJA BR LIST =====
+function addPozicijaBrRow(val = '') {
+  const list = document.getElementById('pozicija-br-list');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'pozicija-br-input';
+  input.placeholder = 'npr. 1234/2';
+  input.value = val;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-remove';
+  btn.innerHTML = '&times;';
+  btn.addEventListener('click', () => row.remove());
+  row.appendChild(input);
+  row.appendChild(btn);
+  list.appendChild(row);
+}
+
+function getPozicijaBr() {
+  const vals = Array.from(document.querySelectorAll('#pozicija-br-list .pozicija-br-input'))
+    .map(i => i.value.trim()).filter(Boolean);
+  return vals.length > 0 ? vals.join(', ') : null;
+}
+
+document.getElementById('add-pozicija-br-btn').addEventListener('click', () => addPozicijaBrRow());
+
+function addRezervuRow(val = '') {
+  const list = document.getElementById('usvojena-rezerve-list');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rezerva-input';
+  input.placeholder = 'npr. 1234/2';
+  input.value = val;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-remove';
+  btn.innerHTML = '&times;';
+  btn.addEventListener('click', () => row.remove());
+  row.appendChild(input);
+  row.appendChild(btn);
+  list.appendChild(row);
+}
+
+function getRezerve() {
+  const vals = Array.from(document.querySelectorAll('#usvojena-rezerve-list .rezerva-input'))
+    .map(i => i.value.trim()).filter(Boolean);
+  return vals.length > 0 ? vals.join(', ') : null;
+}
+
+document.getElementById('add-rezervu-btn').addEventListener('click', () => addRezervuRow());
+
 // ===== MODAL: ADD =====
 function openAdd(kat) {
   modalTitle.textContent = 'Dodaj parcelu';
@@ -1284,9 +1393,19 @@ function openEdit(id) {
   fields.napomena.value        = p.napomena || '';
   fields.brojStuba.value       = p.broj_stuba || '';
   fields.pozicija.value        = p.pozicija || '';
-  fields.pozicijaBr.value      = p.pozicija_br_parcele || '';
+  const pozbList = document.getElementById('pozicija-br-list');
+  pozbList.innerHTML = '';
+  if (p.pozicija_br_parcele) {
+    p.pozicija_br_parcele.split(',').forEach(v => { const t = v.trim(); if (t) addPozicijaBrRow(t); });
+  }
   fields.rizik.value           = p.rizik || '';
   document.getElementById('pozicija-br-wrap').classList.toggle('hidden', p.pozicija !== 'Pomeranje');
+  const rezList = document.getElementById('usvojena-rezerve-list');
+  rezList.innerHTML = '';
+  if (p.usvojena_rezerve) {
+    p.usvojena_rezerve.split(',').forEach(v => { const t = v.trim(); if (t) addRezervuRow(t); });
+  }
+  document.getElementById('usvojena-rezerve-wrap').classList.toggle('hidden', p.pozicija !== 'Usvojena');
   setTipStuba(p.tip_stuba || '');
   renderKulturaPicker(parseKultura(p.kultura));
   ohlFields.classList.toggle('hidden', p.kategorija !== 'OHL');
@@ -1313,9 +1432,11 @@ function clearForm() {
   fields.planirani.value = '';
   fields.brojStuba.value = '';
   fields.pozicija.value = '';
-  fields.pozicijaBr.value = '';
+  document.getElementById('pozicija-br-list').innerHTML = '';
+  document.getElementById('usvojena-rezerve-list').innerHTML = '';
   fields.rizik.value = '';
   document.getElementById('pozicija-br-wrap').classList.add('hidden');
+  document.getElementById('usvojena-rezerve-wrap').classList.add('hidden');
   setTipStuba('');
   ohlFields.classList.add('hidden');
   renderKulturaPicker(new Map());
@@ -1350,7 +1471,8 @@ modalSave.addEventListener('click', async () => {
     godisnji_iznos_eur:  fields.godisnji.value  !== '' ? parseFloat(fields.godisnji.value)  : null,
     napomena:            fields.napomena.value.trim() || null,
     pozicija:            fields.pozicija.value || null,
-    pozicija_br_parcele: fields.pozicija.value === 'Pomeranje' ? (fields.pozicijaBr.value.trim() || null) : null,
+    pozicija_br_parcele: fields.pozicija.value === 'Pomeranje' ? getPozicijaBr() : null,
+    usvojena_rezerve:    fields.pozicija.value === 'Usvojena'  ? getRezerve()    : null,
     rizik:               fields.rizik.value || null,
     tip_stuba:           isOHL ? getTipStuba() : null,
     broj_stuba:          isOHL ? (fields.brojStuba.value.trim() || null) : (existingParcela?.broj_stuba ?? null),
@@ -1562,11 +1684,17 @@ function tipStubaBadge(val) {
 }
 
 // ===== POZICIJA & RIZIK HELPERS =====
-function renderPozicijaHtml(pozicija, brParcele) {
+function renderPozicijaHtml(pozicija, brParcele, rezerve) {
   if (!pozicija) return '—';
-  if (pozicija === 'Usvojena') return '<span class="badge badge-usvojena">Usvojena</span>';
+  if (pozicija === 'Usvojena') {
+    const rezItems = rezerve ? rezerve.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const rezHtml = rezItems.map(r => `<span class="rezerva-br">↰ ${esc(r)}</span>`).join('');
+    return `<span class="badge badge-usvojena">Usvojena</span>${rezHtml}`;
+  }
   if (pozicija === 'Pomeranje') {
-    return `<span class="badge badge-pomeranje">Pomeranje</span>${brParcele ? `<span class="pomeranje-br">→ ${esc(brParcele)}</span>` : ''}`;
+    const parcele = brParcele ? brParcele.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const linesHtml = parcele.map(br => `<span class="pomeranje-br">→ ${esc(br)}</span>`).join('');
+    return `<span class="badge badge-pomeranje">Pomeranje</span>${linesHtml}`;
   }
   return esc(pozicija);
 }
@@ -1584,13 +1712,12 @@ function applyRizikClass(td, rizik) {
   else if (rizik === 'Veliki') td.classList.add('td-rizik-veliki');
 }
 
-function setupPozicijaEdit(td, items, currentPozicija, currentBr) {
+function setupPozicijaEdit(td, items, currentPozicija, currentBr, currentRezeve) {
   td.classList.add('editable-cell');
   td.addEventListener('click', e => {
     if (td.querySelector('.pozicija-edit-wrap')) return;
     e.stopPropagation();
     const origHtml = td.innerHTML;
-    const origClass = [...td.classList];
 
     const wrap = document.createElement('div');
     wrap.className = 'pozicija-edit-wrap';
@@ -1604,28 +1731,119 @@ function setupPozicijaEdit(td, items, currentPozicija, currentBr) {
       sel.appendChild(opt);
     });
 
-    const brInput = document.createElement('input');
-    brInput.type = 'text';
-    brInput.className = 'inline-edit-el';
-    brInput.placeholder = 'Br. parcele';
-    brInput.value = currentBr || '';
-    brInput.style.display = sel.value === 'Pomeranje' ? '' : 'none';
+    // Multi-input container for Pomeranje
+    const brWrap = document.createElement('div');
+    brWrap.style.cssText = 'margin-top:6px;display:' + (sel.value === 'Pomeranje' ? '' : 'none');
+    const brList = document.createElement('div');
+
+    const addBrRowInline = (val = '') => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:4px;margin-bottom:4px';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'inline-edit-el pozicija-br-inline';
+      inp.placeholder = 'npr. 1234/2';
+      inp.value = val;
+      const rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'btn-remove'; rm.innerHTML = '&times;';
+      rm.addEventListener('click', e => { e.stopPropagation(); row.remove(); });
+      row.appendChild(inp); row.appendChild(rm); brList.appendChild(row);
+    };
+
+    if (currentBr) currentBr.split(',').forEach(v => { const t = v.trim(); if (t) addBrRowInline(t); });
+
+    const addMoreBrBtn = document.createElement('button');
+    addMoreBrBtn.type = 'button'; addMoreBrBtn.className = 'btn btn-ghost btn-sm';
+    addMoreBrBtn.style.cssText = 'width:100%;font-size:11px;padding:2px;margin-bottom:6px';
+    addMoreBrBtn.textContent = '+ Dodaj';
+    addMoreBrBtn.addEventListener('click', e => { e.stopPropagation(); addBrRowInline(); });
+
+    // Multi-input container for Usvojena rezerve
+    const rezWrap = document.createElement('div');
+    rezWrap.style.cssText = 'margin-top:6px;display:' + (sel.value === 'Usvojena' ? '' : 'none');
+    const rezList = document.createElement('div');
+
+    const addRezRowInline = (val = '') => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:4px;margin-bottom:4px';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'inline-edit-el rezerva-inline';
+      inp.placeholder = 'npr. 1234/2';
+      inp.value = val;
+      const rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'btn-remove'; rm.innerHTML = '&times;';
+      rm.addEventListener('click', e => { e.stopPropagation(); row.remove(); });
+      row.appendChild(inp); row.appendChild(rm); rezList.appendChild(row);
+    };
+
+    if (currentRezeve) currentRezeve.split(',').forEach(v => { const t = v.trim(); if (t) addRezRowInline(t); });
+
+    const addMoreRezBtn = document.createElement('button');
+    addMoreRezBtn.type = 'button'; addMoreRezBtn.className = 'btn btn-ghost btn-sm';
+    addMoreRezBtn.style.cssText = 'width:100%;font-size:11px;padding:2px;margin-bottom:6px';
+    addMoreRezBtn.textContent = '+ Dodaj rezervu';
+    addMoreRezBtn.addEventListener('click', e => { e.stopPropagation(); addRezRowInline(); });
+
+    // Shared Save/Cancel action row
+    const makeActionRow = () => {
+      const actionRow = document.createElement('div');
+      actionRow.style.cssText = 'display:flex;gap:4px';
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button'; saveBtn.className = 'btn btn-primary btn-sm';
+      saveBtn.style.cssText = 'flex:1;font-size:11px;padding:3px';
+      saveBtn.textContent = 'Sačuvaj';
+      saveBtn.addEventListener('click', e => { e.stopPropagation(); save(); });
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button'; cancelBtn.className = 'btn btn-ghost btn-sm';
+      cancelBtn.style.cssText = 'font-size:11px;padding:3px 8px';
+      cancelBtn.textContent = '✕';
+      cancelBtn.addEventListener('click', e => { e.stopPropagation(); cancel(); });
+      actionRow.appendChild(saveBtn); actionRow.appendChild(cancelBtn);
+      return actionRow;
+    };
+
+    brWrap.appendChild(brList); brWrap.appendChild(addMoreBrBtn); brWrap.appendChild(makeActionRow());
+    rezWrap.appendChild(rezList); rezWrap.appendChild(addMoreRezBtn); rezWrap.appendChild(makeActionRow());
 
     sel.addEventListener('change', () => {
-      brInput.style.display = sel.value === 'Pomeranje' ? '' : 'none';
+      brWrap.style.display  = sel.value === 'Pomeranje' ? '' : 'none';
+      rezWrap.style.display = sel.value === 'Usvojena'  ? '' : 'none';
+      if (sel.value !== 'Pomeranje' && sel.value !== 'Usvojena') {
+        save();
+      } else if (sel.value === 'Pomeranje' && !brList.querySelector('.pozicija-br-inline')) {
+        addBrRowInline();
+      } else if (sel.value === 'Usvojena' && !rezList.querySelector('.rezerva-inline')) {
+        // don't auto-add rezervu row — optional
+      }
     });
+    sel.addEventListener('keydown', e => { if (e.key === 'Escape') cancel(); });
 
     wrap.appendChild(sel);
-    wrap.appendChild(brInput);
+    wrap.appendChild(brWrap);
+    wrap.appendChild(rezWrap);
     td.innerHTML = '';
     td.appendChild(wrap);
     sel.focus();
 
+    function getBrInline() {
+      const vals = [...brList.querySelectorAll('.pozicija-br-inline')]
+        .map(i => i.value.trim()).filter(Boolean);
+      return vals.length ? vals.join(', ') : null;
+    }
+
+    function getRezInline() {
+      const vals = [...rezList.querySelectorAll('.rezerva-inline')]
+        .map(i => i.value.trim()).filter(Boolean);
+      return vals.length ? vals.join(', ') : null;
+    }
+
     async function save() {
       const newPozicija = sel.value || null;
-      const newBr = newPozicija === 'Pomeranje' ? (brInput.value.trim() || null) : null;
+      const newBr  = newPozicija === 'Pomeranje' ? getBrInline() : null;
+      const newRez = newPozicija === 'Usvojena'  ? getRezInline() : null;
       for (const item of items) {
-        await sb.from('parcele').update({ pozicija: newPozicija, pozicija_br_parcele: newBr }).eq('id', item.id);
+        await sb.from('parcele').update({ pozicija: newPozicija, pozicija_br_parcele: newBr, usvojena_rezerve: newRez }).eq('id', item.id);
       }
       await loadParcele();
       renderKatStats(currentPage);
@@ -1633,22 +1851,6 @@ function setupPozicijaEdit(td, items, currentPozicija, currentBr) {
     }
 
     function cancel() { td.innerHTML = origHtml; }
-
-    let saved = false;
-    sel.addEventListener('change', () => {
-      if (sel.value !== 'Pomeranje') { saved = true; save(); }
-    });
-    brInput.addEventListener('blur', () => { if (!saved) { saved = true; save(); } });
-    brInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { saved = true; save(); }
-      if (e.key === 'Escape') { saved = true; cancel(); }
-    });
-    sel.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { saved = true; cancel(); }
-    });
-    sel.addEventListener('blur', () => {
-      if (!saved && sel.value !== 'Pomeranje') { saved = true; cancel(); }
-    });
   });
 }
 

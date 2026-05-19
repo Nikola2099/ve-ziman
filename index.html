@@ -172,8 +172,14 @@
           </select>
         </div>
         <div class="form-group" id="pozicija-br-wrap">
-          <label>Br. parcele na koji se pomera</label>
-          <input type="text" id="field-pozicija-br" placeholder="npr. 1234/2" />
+          <label>Br. parcele(a) na koje se pomera</label>
+          <div id="pozicija-br-list"></div>
+          <button type="button" id="add-pozicija-br-btn" class="btn btn-ghost btn-sm" style="margin-top:4px">+ Dodaj</button>
+        </div>
+        <div class="form-group hidden" id="usvojena-rezerve-wrap">
+          <label>Rezerve</label>
+          <div id="usvojena-rezerve-list"></div>
+          <button type="button" id="add-rezervu-btn" class="btn btn-ghost btn-sm" style="margin-top:4px">+ Dodaj rezervu</button>
         </div>
         <div class="form-group">
           <label>Rizik</label>
@@ -256,7 +262,7 @@
       <!-- Napomena -->
       <div class="form-group">
         <label>Napomena</label>
-        <textarea id="field-napomena" rows="3" placeholder="Slobodan tekst..."></textarea>
+        <textarea id="field-napomena" rows="6" placeholder="Slobodan tekst..."></textarea>
       </div>
 
       <p id="modal-error" class="error-msg hidden"></p>

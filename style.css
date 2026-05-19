@@ -884,9 +884,9 @@ textarea { resize: vertical; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   width: 100%;
-  max-width: 640px;
+  max-width: 860px;
   box-shadow: var(--shadow);
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
 }
 
@@ -1171,7 +1171,8 @@ textarea { resize: vertical; }
 /* ===== POZICIJA & RIZIK ===== */
 .badge-usvojena  { background: rgba(79,142,247,0.15); color: var(--primary); }
 .badge-pomeranje { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.pomeranje-br { display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.pomeranje-br  { display: block; font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.rezerva-br    { display: block; font-size: 11px; color: rgba(79,142,247,0.6); margin-top: 3px; }
 
 .td-rizik-mali    { background: rgba(34,197,94,0.13) !important; }
 .td-rizik-srednji { background: rgba(245,158,11,0.13) !important; }
